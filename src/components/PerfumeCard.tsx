@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { Perfume } from '../data/perfumes';
 
 interface PerfumeCardProps {
@@ -17,6 +18,9 @@ export function PerfumeCard({ perfume }: PerfumeCardProps) {
                     {note}
                 </span>
             ))}
+            <Link to={`/perfume/${perfume.name}`} className="mt-2 inline-block align-right bg-purple-900 text-white px-4 py-2 rounded hover:bg-purple-800">
+                Saiba mais
+            </Link>
         </div>
     );
 }
