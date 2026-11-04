@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { perfumes, type Perfume } from '../data/perfumes';
+import { perfumes } from '../data/perfumes';
 
 export function PerfumeDetail() {
   const { name } = useParams<{ name: string }>();
