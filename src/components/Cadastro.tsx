@@ -1,110 +1,265 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FiArrowUpRight } from 'react-icons/fi';
 
 export function Cadastro() {
+  // step 1: Dados Pessoais | step 2: Quiz
   const [step, setStep] = useState(1);
+  const [quizQuestion, setQuizQuestion] = useState(1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
     senha: '',
-    perfilOlfativo: ''
+    ocasiao: '',
+    personalidade: '',
+    sensacao: ''
   });
+
   const navigate = useNavigate();
 
-  // Avança para a pergunta do perfume
-  const handleNext = (e: React.FormEvent) => {
+  const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(2);
+    setStep(2); // Avança para o quiz
   };
 
-  // Guarda a resposta do perfume e finaliza o cadastro
-  const handleFinish = (perfil: string) => {
-    const finalData = { ...formData, perfilOlfativo: perfil };
-    console.log('Novo utilizador registado:', finalData);
-    
-    // Futuramente: Salvar no banco de dados e context
-    alert('Cadastro concluído! O seu perfil olfativo é: ' + perfil);
-    navigate('/');
+  // Guarda a resposta atual e avança para a próxima pergunta do quiz
+  // A tipagem 'keyof typeof formData' resolve o erro do TypeScript
+  const handleAnswer = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+
+    if (quizQuestion < 3) {
+      setQuizQuestion(quizQuestion + 1);
+    } else {
+      // Se for a última pergunta, finaliza o cadastro passando os dados atualizados
+      finishRegistration({ ...formData, [field]: value });
+    }
+  };
+
+  const finishRegistration = (finalData: any) => {
+    // 1. Ativa a tela de "Destilando essências"
+    setIsAnalyzing(true);
+
+    // 2. Aguarda 2.5 segundos para a animação rodar, depois navega para a Home
+    setTimeout(() => {
+      navigate('/', { state: { perfilUsuario: finalData } });
+    }, 3500);
   };
 
   return (
-    <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
-      <div className="bg-neutral-800 border border-amber-700/30 p-8 rounded-lg max-w-md w-full shadow-2xl text-stone-200">
-        
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-serif font-bold text-amber-500 mb-2">Perfumaria CS</h1>
-          <p className="text-sm text-stone-400 tracking-wide">
-            {step === 1 ? 'Crie a sua assinatura' : 'Descubra o seu estilo'}
-          </p>
-        </div>
+    <>
+      {/* ECRÃ DE TRANSIÇÃO (Aparece apenas quando isAnalyzing for true) */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-center overflow-hidden">
+          
+          <style>{`
+            /* Animação que faz as partículas flutuarem para cima e desaparecerem */
+            @keyframes float-particle {
+              0% { transform: translateY(0px) scale(0.5); opacity: 0; }
+              30% { opacity: 0.8; }
+              100% { transform: translateY(-150px) scale(1.5); opacity: 0; }
+            }
+            .particle {
+              animation: float-particle ease-in-out infinite;
+            }
+          `}</style>
 
-        {step === 1 ? (
-          <form onSubmit={handleNext} className="flex flex-col gap-4">
-            <div>
-              <label className="block text-sm mb-1 text-stone-300">Nome completo</label>
-              <input
-                type="text"
-                required
-                className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
-                value={formData.nome}
-                onChange={e => setFormData({...formData, nome: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1 text-stone-300">E-mail</label>
-              <input
-                type="email"
-                required
-                className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
-                value={formData.email}
-                onChange={e => setFormData({...formData, email: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1 text-stone-300">Senha</label>
-              <input
-                type="password"
-                required
-                className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
-                value={formData.senha}
-                onChange={e => setFormData({...formData, senha: e.target.value})}
-              />
-            </div>
-            
-            <button type="submit" className="mt-4 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm">
-              Continuar ↗
-            </button>
-            
-            <p className="text-center text-sm text-stone-400 mt-4">
-              Já tem conta? <Link to="/login" className="text-amber-500 hover:underline font-semibold">Entrar</Link>
-            </p>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-4 animate-fade-in">
-            <h3 className="text-lg font-serif text-center text-stone-200 mb-2">Qual sensação prefere num perfume?</h3>
-            <p className="text-xs text-center text-stone-400 mb-4">Isto ajudará a nossa curadoria a recomendar-lhe a fragrância ideal.</p>
-            
-            <div className="grid grid-cols-1 gap-3">
-              <button onClick={() => handleFinish('doce')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all">
-                ☕ Doce e envolvente
-              </button>
-              <button onClick={() => handleFinish('fresco')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all">
-                ☀️ Fresco e versátil
-              </button>
-              <button onClick={() => handleFinish('floral')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all">
-                🌸 Floral e elegante
-              </button>
-              <button onClick={() => handleFinish('marcante')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all">
-                ✦ Marcante e sofisticado
-              </button>
-            </div>
-            
-            <button onClick={() => setStep(1)} className="mt-4 text-xs text-stone-500 hover:text-stone-300 text-center uppercase tracking-widest">
-              ← Voltar
-            </button>
+          {/* Fundo levemente iluminado para destacar as partículas */}
+          <div className="absolute w-[40rem] h-[40rem] bg-amber-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+          {/* Gerador de Partículas (Simulando o spray do perfume) */}
+          <div className="absolute inset-0 pointer-events-none flex justify-center items-center">
+            {/* Criamos 40 partículas com posições e tempos aleatórios para parecer orgânico */}
+            {[...Array(40)].map((_, i) => {
+              const size = Math.random() * 5 + 2; // Tamanho entre 2px e 7px
+              const left = Math.random() * 100; // Posição horizontal (0% a 100%)
+              const top = Math.random() * 100; // Posição vertical (0% a 100%)
+              const delay = Math.random() * 2; // Atraso para não subirem todas juntas
+              const duration = Math.random() * 2 + 2; // Velocidade da subida (2s a 4s)
+              
+              return (
+                <div 
+                  key={i}
+                  className="particle absolute rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.9)]"
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    animationDelay: `${delay}s`,
+                    animationDuration: `${duration}s`,
+                    opacity: 0
+                  }}
+                ></div>
+              );
+            })}
           </div>
-        )}
+
+          {/* Conteúdo Central */}
+          <div className="relative z-10 flex flex-col items-center animate-fade-in">
+            
+            {/* Monograma Minimalista */}
+            <div className="relative w-20 h-20 flex items-center justify-center mb-6">
+              <div className="absolute inset-0 border border-amber-500/20 rotate-45 animate-pulse" style={{ animationDuration: '3s' }}></div>
+              <span className="font-serif text-3xl text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]">
+                CS
+              </span>
+            </div>
+
+            <h2 className="text-2xl md:text-3xl font-serif text-amber-500/90 mb-3 tracking-widest text-center font-light">
+              Vaporizando a essência
+            </h2>
+
+            <p className="text-stone-500 text-[10px] tracking-[0.4em] uppercase">
+              Apurando o seu perfil olfativo
+            </p>
+            
+          </div>
+        </div>
+      )}
+
+      {/* A classe 'hidden' é aplicada aqui se isAnalyzing for true para esconder o form */}
+      <div className={`min-h-screen bg-neutral-900 flex items-center justify-center p-4 ${isAnalyzing ? 'hidden' : ''}`}>
+        <div className="bg-neutral-800 border border-amber-700/30 p-8 rounded-lg max-w-md w-full shadow-2xl text-stone-200 min-h-[450px] flex flex-col justify-center">
+
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-serif font-bold text-amber-500 mb-2">Perfumaria CS</h1>
+            <p className="text-sm text-stone-400 tracking-wide">
+              {step === 1 ? 'Crie a sua assinatura' : 'Descubra o seu estilo'}
+            </p>
+          </div>
+
+          {step === 1 ? (
+            /* PASSO 1: DADOS PESSOAIS */
+            <form onSubmit={handleNextStep} className="flex flex-col gap-4 animate-fade-in">
+              <div>
+                <label className="block text-sm mb-1 text-stone-300">Nome completo</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
+                  value={formData.nome}
+                  onChange={e => setFormData({ ...formData, nome: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1 text-stone-300">E-mail</label>
+                <input
+                  type="email"
+                  required
+                  className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1 text-stone-300">Senha</label>
+                <input
+                  type="password"
+                  required
+                  className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
+                  value={formData.senha}
+                  onChange={e => setFormData({ ...formData, senha: e.target.value })}
+                />
+              </div>
+
+              <button type="submit" className="mt-4 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+                Continuar <FiArrowUpRight className="text-lg" />
+              </button>
+
+              <p className="text-center text-sm text-stone-400 mt-4">
+                Já tem conta? <Link to="/login" className="text-amber-500 hover:underline font-semibold">Entrar</Link>
+              </p>
+            </form>
+          ) : (
+            /* PASSO 2: QUIZ OLFATIVO (3 Perguntas dinâmicas) */
+            <div className="flex flex-col gap-4">
+
+              {/* Barra de Progresso Simples */}
+              <div className="flex justify-center gap-2 mb-4">
+                <div className={`h-1 w-8 rounded-full ${quizQuestion >= 1 ? 'bg-amber-500' : 'bg-neutral-700'}`}></div>
+                <div className={`h-1 w-8 rounded-full ${quizQuestion >= 2 ? 'bg-amber-500' : 'bg-neutral-700'}`}></div>
+                <div className={`h-1 w-8 rounded-full ${quizQuestion >= 3 ? 'bg-amber-500' : 'bg-neutral-700'}`}></div>
+              </div>
+
+              {quizQuestion === 1 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-xl font-serif text-center text-stone-200 mb-2">Qual é o uso principal do seu perfume?</h3>
+                  <p className="text-xs text-center text-stone-400 mb-6">A intensidade ideal depende de onde você vai.</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button onClick={() => handleAnswer('ocasiao', 'Trabalho e dia a dia')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      💼 Trabalho e dia a dia (Discreto)
+                    </button>
+                    <button onClick={() => handleAnswer('ocasiao', 'Festas e eventos')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      🥂 Festas e eventos (Marcante)
+                    </button>
+                    <button onClick={() => handleAnswer('ocasiao', 'Encontros a dois')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      🍷 Encontros a dois (Intimista)
+                    </button>
+                    <button onClick={() => handleAnswer('ocasiao', 'Assinatura')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      ✨ Assinatura (Uso para tudo)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {quizQuestion === 2 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-xl font-serif text-center text-stone-200 mb-2">Como descreveria a sua personalidade?</h3>
+                  <p className="text-xs text-center text-stone-400 mb-6">Perfumes também comunicam quem você é.</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button onClick={() => handleAnswer('personalidade', 'Elegante')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      👑 Elegante e sofisticado(a)
+                    </button>
+                    <button onClick={() => handleAnswer('personalidade', 'Comunicativo')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      ⚡ Dinâmico(a) e comunicativo(a)
+                    </button>
+                    <button onClick={() => handleAnswer('personalidade', 'Misterioso')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      🔥 Intenso(a) e sedutor(a)
+                    </button>
+                    <button onClick={() => handleAnswer('personalidade', 'Minimalista')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      🍃 Calmo(a) e minimalista
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {quizQuestion === 3 && (
+                <div className="animate-fade-in">
+                  <h3 className="text-xl font-serif text-center text-stone-200 mb-2">Qual sensação mais lhe agrada?</h3>
+                  <p className="text-xs text-center text-stone-400 mb-6">Isto define o caminho olfativo ideal para si.</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button onClick={() => handleAnswer('sensacao', 'Doce')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      ☕ Doce, quente e envolvente
+                    </button>
+                    <button onClick={() => handleAnswer('sensacao', 'Fresco')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      ☀️ Fresco, limpo e versátil
+                    </button>
+                    <button onClick={() => handleAnswer('sensacao', 'Floral')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      🌸 Floral, macio e elegante
+                    </button>
+                    <button onClick={() => handleAnswer('sensacao', 'Amadeirado')} className="p-4 border border-amber-700/40 hover:bg-amber-900/40 hover:border-amber-500 rounded text-left transition-all text-sm">
+                      ✦ Madeiras fortes e especiarias
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between mt-4">
+                <button
+                  onClick={() => quizQuestion > 1 ? setQuizQuestion(quizQuestion - 1) : setStep(1)}
+                  className="text-xs text-stone-500 hover:text-stone-300 uppercase tracking-widest p-2 transition-colors"
+                >
+                  ← Voltar
+                </button>
+                <span className="text-xs text-stone-600 p-2">{quizQuestion}/3</span>
+              </div>
+
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

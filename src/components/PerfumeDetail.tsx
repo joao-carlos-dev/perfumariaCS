@@ -75,11 +75,7 @@ export function PerfumeDetail() {
 
             {/* Botões de Ação */}
             <div className="flex flex-col sm:flex-row gap-4 mt-auto">
-              <button className="bg-neutral-950 hover:bg-amber-600 text-white hover:text-neutral-950 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto shadow-md">
-                Adicionar ao Carrinho +
-              </button>
-              
-              <Link 
+               <Link 
                 to="/" 
                 className="border border-stone-300 hover:border-amber-500 text-neutral-900 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto"
               >

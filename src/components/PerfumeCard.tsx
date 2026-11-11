@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Perfume } from '../data/perfumes';
+import { FiArrowUpRight } from 'react-icons/fi';
 
 interface PerfumeCardProps {
     perfume: Perfume;
@@ -40,7 +41,7 @@ export function PerfumeCard({ perfume }: PerfumeCardProps) {
                         to={`/perfume/${perfume.name}`} 
                         className="bg-neutral-900 hover:bg-amber-600 text-white hover:text-neutral-900 text-[10px] font-bold tracking-widest uppercase px-4 py-2 transition-colors"
                     >
-                        Saiba mais ↗
+                        Saiba mais <FiArrowUpRight className="text-lg inline-block" />
                     </Link>
                 </div>
             </div>
