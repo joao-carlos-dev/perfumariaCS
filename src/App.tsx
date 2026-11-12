@@ -5,6 +5,7 @@ import { Home } from "./components/Home"
 import { PerfumeDetail } from "./components/PerfumeDetail"
 import { Login } from "./components/Login"
 import { Cadastro } from "./components/Cadastro"
+import { Perfil } from "./components/Perfil"
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/perfume/:name" element={<PerfumeDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
+          <Route path="/perfil" element={<Perfil />} />
         </Routes>
       </main>
 

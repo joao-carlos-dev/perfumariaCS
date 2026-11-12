@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { perfumes } from '../data/perfumes';
+import { FaWhatsapp } from 'react-icons/fa';
 
 export function PerfumeDetail() {
   const { name } = useParams<{ name: string }>();
@@ -16,6 +17,20 @@ export function PerfumeDetail() {
       </div>
     );
   }
+
+  // --- CONFIGURAÇÃO DO WHATSAPP COM NOME DO UTILIZADOR ---
+  const numeroWhatsApp = "5548998396111"; 
+  
+  // Tenta procurar o nome do utilizador na memória do navegador
+  const nomeUsuario = localStorage.getItem('nomeUsuario');
+  
+  // Cria a saudação de forma dinâmica: com ou sem nome
+  const saudacao = nomeUsuario 
+    ? `Olá! O meu nome é *${nomeUsuario}* e vim pelo site Perfumaria CS. Tenho interesse` 
+    : `Olá! Vim pelo site Perfumaria CS e tenho interesse`;
+
+  const mensagem = `${saudacao} no perfume *${perfume.name}* da marca ${perfume.brand}. Gostaria de obter mais informações!`;
+  const linkWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`;
 
   return (
     <div className="min-h-screen bg-stone-50 pt-28 pb-20 px-4">
@@ -36,7 +51,7 @@ export function PerfumeDetail() {
           </div>
 
           {/* Coluna Direita: Detalhes do Produto */}
-          <div className="flex flex-col">
+          <div className="flex flex-col h-full justify-center">
             <span className="text-amber-700 text-xs tracking-widest uppercase font-bold mb-2">
               {perfume.brand}
             </span>
@@ -75,12 +90,24 @@ export function PerfumeDetail() {
 
             {/* Botões de Ação */}
             <div className="flex flex-col sm:flex-row gap-4 mt-auto">
-               <Link 
+              
+              <Link 
                 to="/" 
                 className="border border-stone-300 hover:border-amber-500 text-neutral-900 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto"
               >
                 Voltar à Loja
               </Link>
+
+              <a 
+                href={linkWhatsApp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-neutral-950 hover:bg-amber-600 text-white hover:text-neutral-950 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto shadow-md flex items-center justify-center gap-2"
+              >
+                <FaWhatsapp className="text-lg" />
+                Comprar pelo WhatsApp
+              </a>
+
             </div>
 
           </div>
