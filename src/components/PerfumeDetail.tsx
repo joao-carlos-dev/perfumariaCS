@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { perfumes } from '../data/perfumes';
 import { FaWhatsapp } from 'react-icons/fa';
+import ReactGA from 'react-ga4';
 
 export function PerfumeDetail() {
   const { name } = useParams<{ name: string }>();
@@ -31,6 +32,15 @@ export function PerfumeDetail() {
 
   const mensagem = `${saudacao} no perfume *${perfume.name}* da marca ${perfume.brand}. Gostaria de obter mais informações!`;
   const linkWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`;
+
+  const handleWhatsAppClick = () => {
+  // Regista o clique especificando qual perfume gerou o interesse
+  ReactGA.event({
+    category: 'Conversão',
+    action: 'Clique_Botao_WhatsApp',
+    label: perfume.name // Ex: 'Vanilla Powder'
+  });
+};
 
   return (
     <div className="min-h-screen bg-stone-50 pt-28 pb-20 px-4">
@@ -102,6 +112,7 @@ export function PerfumeDetail() {
                 href={linkWhatsApp}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={handleWhatsAppClick}
                 className="bg-neutral-950 hover:bg-amber-600 text-white hover:text-neutral-950 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto shadow-md flex items-center justify-center gap-2"
               >
                 <FaWhatsapp className="text-lg" />

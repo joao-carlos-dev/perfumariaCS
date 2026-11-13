@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowUpRight, FiEye, FiEyeOff } from 'react-icons/fi';
+import ReactGA from 'react-ga4'; // 1. Importação do Google Analytics
 
 // Helper para verificar sequência de números (crescente ou decrescente)
 function checkSequentialNumbers(password: string): boolean {
@@ -15,7 +16,7 @@ export function Cadastro() {
   const [step, setStep] = useState(1);
   const [quizQuestion, setQuizQuestion] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
+  
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [erro, setErro] = useState('');
 
@@ -37,41 +38,36 @@ export function Cadastro() {
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
-    setErro('');
+    setErro(''); 
 
     const { senha } = formData;
 
-    // 1. Validação de Tamanho (8 a 15 caracteres)
     if (senha.length < 8 || senha.length > 15) {
       setErro('A senha deve ter entre 8 e 15 caracteres.');
       return;
     }
 
-    // 2. Validação de senhas iguais
     if (senha !== confirmarSenha) {
       setErro('As senhas não coincidem.');
       return;
     }
 
-    // 3. Validação de Letra Maiúscula
     if (!/[A-Z]/.test(senha)) {
       setErro('A senha deve conter pelo menos uma letra maiúscula.');
       return;
     }
 
-    // 4. Validação de Caractere Especial
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(senha)) {
       setErro('A senha deve conter pelo menos um caractere especial (ex: @, #, !).');
       return;
     }
 
-    // 5. Validação de Números em Sequência
     if (checkSequentialNumbers(senha)) {
       setErro('A senha não pode conter números em sequência (ex: 123 ou 321).');
       return;
     }
 
-    setStep(2);
+    setStep(2); 
   };
 
   const handleAnswer = (field: keyof typeof formData, value: string) => {
@@ -85,13 +81,20 @@ export function Cadastro() {
   };
 
   const finishRegistration = (finalData: any) => {
-    // 1. Guarda o nome do utilizador
+    // Guarda o nome do utilizador
     localStorage.setItem('nomeUsuario', finalData.nome);
-
-    // 2. GUARDA TODOS OS DADOS (Email, Telefone, Quiz) na memória do navegador
+    
+    // GUARDA TODOS OS DADOS (Email, Telefone, Quiz) na memória do navegador
     localStorage.setItem('perfilCompleto', JSON.stringify(finalData));
 
-    // 3. Ativa a tela de partículas
+    // 2. DISPARA O EVENTO PARA O GOOGLE ANALYTICS
+    ReactGA.event({
+      category: 'Conversão',
+      action: 'Cadastro_Finalizado',
+      label: finalData.sensacao // Envia a sensação escolhida (Doce, Fresco, Floral ou Amadeirado)
+    });
+
+    // Ativa a tela de partículas
     setIsAnalyzing(true);
     setTimeout(() => {
       navigate('/', { state: { perfilUsuario: finalData } });
@@ -120,9 +123,9 @@ export function Cadastro() {
               const top = Math.random() * 100;
               const delay = Math.random() * 2;
               const duration = Math.random() * 2 + 2;
-
+              
               return (
-                <div
+                <div 
                   key={i}
                   className="particle absolute rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.9)]"
                   style={{
@@ -168,7 +171,7 @@ export function Cadastro() {
                   onChange={e => setFormData({ ...formData, nome: e.target.value })}
                 />
               </div>
-
+              
               <div>
                 <label className="block text-sm mb-1 text-stone-300">Número de telefone</label>
                 <input
@@ -203,15 +206,15 @@ export function Cadastro() {
                     value={formData.senha}
                     onChange={e => setFormData({ ...formData, senha: e.target.value })}
                   />
-                  <button
-                    type="button"
+                  <button 
+                    type="button" 
                     onClick={() => setMostrarSenha(!mostrarSenha)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-500 transition-colors cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-500 transition-colors"
                   >
                     {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                   </button>
                 </div>
-                <p className="text-[10px] text-amber-300 mt-2 leading-relaxed">
+                <p className="text-[10px] text-stone-500 mt-2 leading-relaxed">
                   A senha deve ter entre 8 e 15 caracteres, e incluir pelo menos 1 letra maiúscula, 1 caractere especial e não possuir números em sequência (ex: 123).
                 </p>
               </div>
@@ -227,10 +230,10 @@ export function Cadastro() {
                     value={confirmarSenha}
                     onChange={e => setConfirmarSenha(e.target.value)}
                   />
-                  <button
-                    type="button"
+                  <button 
+                    type="button" 
                     onClick={() => setMostrarConfirmarSenha(!mostrarConfirmarSenha)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-500 transition-colors cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-500 transition-colors"
                   >
                     {mostrarConfirmarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                   </button>
@@ -243,7 +246,7 @@ export function Cadastro() {
                 </div>
               )}
 
-              <button type="submit" className="mt-4 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2 cursor-pointer">
+              <button type="submit" className="mt-4 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2">
                 Continuar <FiArrowUpRight className="text-lg" />
               </button>
 
