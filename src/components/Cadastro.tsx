@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowUpRight, FiEye, FiEyeOff } from 'react-icons/fi';
-import ReactGA from 'react-ga4'; // 1. Importação do Google Analytics
+import { FiArrowUpRight, FiEye, FiEyeOff, FiShield } from 'react-icons/fi';
+import ReactGA from 'react-ga4';
 
 // Helper para verificar sequência de números (crescente ou decrescente)
 function checkSequentialNumbers(password: string): boolean {
@@ -12,15 +12,32 @@ function checkSequentialNumbers(password: string): boolean {
   return sequences.some(seq => password.includes(seq));
 }
 
+// Helper para aplicar máscara automática de telefone brasileiro: (00) 00000-0000
+function formatPhoneNumber(value: string): string {
+  const numbers = value.replace(/\D/g, '').slice(0, 11);
+  if (numbers.length === 0) return '';
+  if (numbers.length <= 2) return `(${numbers}`;
+  if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 10) {
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+  }
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+}
+
+// Helper simples de sanitização para evitar injeção de tags HTML (<script>, etc.)
+function sanitizeText(value: string): string {
+  return value.replace(/[<>]/g, '');
+}
+
 export function Cadastro() {
   const [step, setStep] = useState(1);
   const [quizQuestion, setQuizQuestion] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [aceitouTermos, setAceitouTermos] = useState(false);
   const [erro, setErro] = useState('');
 
-  // Estados para controlar a visibilidade das senhas
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
 
@@ -40,30 +57,54 @@ export function Cadastro() {
     e.preventDefault();
     setErro(''); 
 
-    const { senha } = formData;
+    const { nome, telefone, senha } = formData;
+    const apenasNumerosTelefone = telefone.replace(/\D/g, '');
 
+    // 1. Validação de Nome mínimo
+    if (nome.trim().length < 3) {
+      setErro('Por favor, insira o seu nome completo.');
+      return;
+    }
+
+    // 2. Validação de Telefone (DDD + 8 ou 9 dígitos)
+    if (apenasNumerosTelefone.length < 10 || apenasNumerosTelefone.length > 11) {
+      setErro('Insira um número de telefone válido com DDD.');
+      return;
+    }
+
+    // 3. Validação de Tamanho da Senha (8 a 15 caracteres)
     if (senha.length < 8 || senha.length > 15) {
       setErro('A senha deve ter entre 8 e 15 caracteres.');
       return;
     }
 
+    // 4. Validação de senhas iguais
     if (senha !== confirmarSenha) {
       setErro('As senhas não coincidem.');
       return;
     }
 
+    // 5. Validação de Letra Maiúscula
     if (!/[A-Z]/.test(senha)) {
       setErro('A senha deve conter pelo menos uma letra maiúscula.');
       return;
     }
 
+    // 6. Validação de Caractere Especial
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(senha)) {
       setErro('A senha deve conter pelo menos um caractere especial (ex: @, #, !).');
       return;
     }
 
+    // 7. Validação de Números em Sequência
     if (checkSequentialNumbers(senha)) {
       setErro('A senha não pode conter números em sequência (ex: 123 ou 321).');
+      return;
+    }
+
+    // 8. Validação de Consentimento LGPD
+    if (!aceitouTermos) {
+      setErro('Você precisa concordar com a Política de Privacidade (LGPD) para continuar.');
       return;
     }
 
@@ -81,23 +122,28 @@ export function Cadastro() {
   };
 
   const finishRegistration = (finalData: any) => {
-    // Guarda o nome do utilizador
-    localStorage.setItem('nomeUsuario', finalData.nome);
-    
-    // GUARDA TODOS OS DADOS (Email, Telefone, Quiz) na memória do navegador
-    localStorage.setItem('perfilCompleto', JSON.stringify(finalData));
+    // SEGURANÇA: Desestrutura o objeto para descartar a senha antes de salvar no navegador
+    const { senha, ...dadosSeguros } = finalData;
 
-    // 2. DISPARA O EVENTO PARA O GOOGLE ANALYTICS
+    const perfilParaSalvar = {
+      ...dadosSeguros,
+      consentimentoLGPD: true,
+      dataCadastro: new Date().toISOString()
+    };
+
+    localStorage.setItem('nomeUsuario', dadosSeguros.nome);
+    localStorage.setItem('perfilCompleto', JSON.stringify(perfilParaSalvar));
+
+    // Dispara o evento para o Google Analytics (sem enviar dados pessoais sensíveis)
     ReactGA.event({
       category: 'Conversão',
       action: 'Cadastro_Finalizado',
-      label: finalData.sensacao // Envia a sensação escolhida (Doce, Fresco, Floral ou Amadeirado)
+      label: dadosSeguros.sensacao
     });
 
-    // Ativa a tela de partículas
     setIsAnalyzing(true);
     setTimeout(() => {
-      navigate('/', { state: { perfilUsuario: finalData } });
+      navigate('/', { state: { perfilUsuario: perfilParaSalvar } });
     }, 4500);
   };
 
@@ -166,9 +212,10 @@ export function Cadastro() {
                 <input
                   type="text"
                   required
+                  maxLength={80}
                   className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
                   value={formData.nome}
-                  onChange={e => setFormData({ ...formData, nome: e.target.value })}
+                  onChange={e => setFormData({ ...formData, nome: sanitizeText(e.target.value) })}
                 />
               </div>
               
@@ -180,7 +227,7 @@ export function Cadastro() {
                   placeholder="(00) 00000-0000"
                   className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
                   value={formData.telefone}
-                  onChange={e => setFormData({ ...formData, telefone: e.target.value })}
+                  onChange={e => setFormData({ ...formData, telefone: formatPhoneNumber(e.target.value) })}
                 />
               </div>
 
@@ -189,9 +236,10 @@ export function Cadastro() {
                 <input
                   type="email"
                   required
+                  maxLength={100}
                   className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
                   value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  onChange={e => setFormData({ ...formData, email: sanitizeText(e.target.value.trim()) })}
                 />
               </div>
 
@@ -202,6 +250,7 @@ export function Cadastro() {
                     type={mostrarSenha ? "text" : "password"}
                     required
                     maxLength={15}
+                    autoComplete="new-password"
                     className="w-full p-3 pr-10 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
                     value={formData.senha}
                     onChange={e => setFormData({ ...formData, senha: e.target.value })}
@@ -226,6 +275,7 @@ export function Cadastro() {
                     type={mostrarConfirmarSenha ? "text" : "password"}
                     required
                     maxLength={15}
+                    autoComplete="new-password"
                     className="w-full p-3 pr-10 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
                     value={confirmarSenha}
                     onChange={e => setConfirmarSenha(e.target.value)}
@@ -240,17 +290,37 @@ export function Cadastro() {
                 </div>
               </div>
 
+              {/* Checkbox de Consentimento LGPD */}
+              <div className="mt-2 p-3 bg-neutral-900/60 border border-neutral-700/60 rounded">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={aceitouTermos}
+                    onChange={e => setAceitouTermos(e.target.checked)}
+                    className="mt-1 accent-amber-500 w-4 h-4 rounded cursor-pointer"
+                  />
+                  <span className="text-[11px] text-stone-400 leading-relaxed">
+                    Concordo com o armazenamento dos meus dados para personalização olfativa e contacto via WhatsApp, em conformidade com a <strong className="text-amber-500/90 font-normal">LGPD</strong>.
+                  </span>
+                </label>
+              </div>
+
               {erro && (
                 <div className="bg-red-950/50 border border-red-800/50 text-red-300 p-3 rounded text-xs font-semibold text-center mt-1">
                   {erro}
                 </div>
               )}
 
-              <button type="submit" className="mt-4 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+              <button type="submit" className="mt-2 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2">
                 Continuar <FiArrowUpRight className="text-lg" />
               </button>
 
-              <p className="text-center text-sm text-stone-400 mt-4">
+              <div className="flex items-center justify-center gap-1.5 text-[10px] text-stone-500 mt-1">
+                <FiShield className="text-amber-600" />
+                <span>Os seus dados estão protegidos e a sua senha nunca fica exposta.</span>
+              </div>
+
+              <p className="text-center text-sm text-stone-400 mt-2">
                 Já tem conta? <Link to="/login" className="text-amber-500 hover:underline font-semibold">Entrar</Link>
               </p>
             </form>
