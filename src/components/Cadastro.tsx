@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiArrowUpRight, FiEye, FiEyeOff, FiShield } from 'react-icons/fi';
 import ReactGA from 'react-ga4';
+import { supabase } from '../supabase';
 
 // Helper para verificar sequência de números (crescente ou decrescente)
 function checkSequentialNumbers(password: string): boolean {
@@ -33,13 +34,14 @@ export function Cadastro() {
   const [step, setStep] = useState(1);
   const [quizQuestion, setQuizQuestion] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [aceitouTermos, setAceitouTermos] = useState(false);
   const [erro, setErro] = useState('');
 
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -55,7 +57,7 @@ export function Cadastro() {
 
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
-    setErro(''); 
+    setErro('');
 
     const { nome, telefone, senha } = formData;
     const apenasNumerosTelefone = telefone.replace(/\D/g, '');
@@ -108,7 +110,7 @@ export function Cadastro() {
       return;
     }
 
-    setStep(2); 
+    setStep(2);
   };
 
   const handleAnswer = (field: keyof typeof formData, value: string) => {
@@ -121,30 +123,67 @@ export function Cadastro() {
     }
   };
 
-  const finishRegistration = (finalData: any) => {
-    // SEGURANÇA: Desestrutura o objeto para descartar a senha antes de salvar no navegador
+  const finishRegistration = async (finalData: any) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setErro('');
+
     const { senha, ...dadosSeguros } = finalData;
 
-    const perfilParaSalvar = {
-      ...dadosSeguros,
-      consentimentoLGPD: true,
-      dataCadastro: new Date().toISOString()
-    };
+    try {
+      // Envia tudo num único pedido; a Trigger do PostgreSQL grava nas tabelas clientes e perfis_olfativos
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: dadosSeguros.email,
+        password: senha,
+        options: {
+          data: {
+            nome: dadosSeguros.nome,
+            telefone: dadosSeguros.telefone,
+            consentimento_lgpd: true,
+            ocasiao: dadosSeguros.ocasiao,
+            personalidade: dadosSeguros.personalidade,
+            sensacao: dadosSeguros.sensacao,
+          }
+        }
+      });
 
-    localStorage.setItem('nomeUsuario', dadosSeguros.nome);
-    localStorage.setItem('perfilCompleto', JSON.stringify(perfilParaSalvar));
+      if (authError) {
+        if (authError.status === 429) {
+          throw new Error('Limite de envio de e-mails atingido (429). Configure um Custom SMTP no Supabase ou aguarde 1 hora.');
+        }
+        throw new Error(authError.message);
+      }
 
-    // Dispara o evento para o Google Analytics (sem enviar dados pessoais sensíveis)
-    ReactGA.event({
-      category: 'Conversão',
-      action: 'Cadastro_Finalizado',
-      label: dadosSeguros.sensacao
-    });
+      if (!authData.user) {
+        throw new Error('Erro ao criar utilizador.');
+      }
 
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      navigate('/', { state: { perfilUsuario: perfilParaSalvar } });
-    }, 4500);
+      const perfilParaSalvar = {
+        ...dadosSeguros,
+        consentimentoLGPD: true,
+        dataCadastro: new Date().toISOString()
+      };
+
+      // Guarda localmente para exibir a Vitrine VIP enquanto ele ainda não clicou no link do e-mail
+      localStorage.setItem('nomeUsuario', dadosSeguros.nome);
+      localStorage.setItem('perfilCompleto', JSON.stringify(perfilParaSalvar));
+
+      ReactGA.event({
+        category: 'Conversão',
+        action: 'Cadastro_Finalizado',
+        label: dadosSeguros.sensacao
+      });
+
+      setIsAnalyzing(true);
+      setTimeout(() => {
+        navigate('/', { state: { perfilUsuario: perfilParaSalvar } });
+      }, 4500);
+
+    } catch (error: any) {
+      setErro('Erro no registo: ' + error.message);
+      setStep(1);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -169,9 +208,9 @@ export function Cadastro() {
               const top = Math.random() * 100;
               const delay = Math.random() * 2;
               const duration = Math.random() * 2 + 2;
-              
+
               return (
-                <div 
+                <div
                   key={i}
                   className="particle absolute rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.9)]"
                   style={{
@@ -218,7 +257,7 @@ export function Cadastro() {
                   onChange={e => setFormData({ ...formData, nome: sanitizeText(e.target.value) })}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm mb-1 text-stone-300">Número de telefone</label>
                 <input
@@ -255,8 +294,8 @@ export function Cadastro() {
                     value={formData.senha}
                     onChange={e => setFormData({ ...formData, senha: e.target.value })}
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setMostrarSenha(!mostrarSenha)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-500 transition-colors"
                   >
@@ -280,8 +319,8 @@ export function Cadastro() {
                     value={confirmarSenha}
                     onChange={e => setConfirmarSenha(e.target.value)}
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setMostrarConfirmarSenha(!mostrarConfirmarSenha)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-500 transition-colors"
                   >
