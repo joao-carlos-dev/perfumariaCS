@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FiUser, FiArrowUpRight, FiSearch } from 'react-icons/fi';
+import { FiArrowUpRight, FiSearch } from 'react-icons/fi';
 import { supabase } from '../supabase';
 
 interface Perfume {
@@ -62,30 +62,6 @@ export function Home() {
 
   return (
     <div className="min-h-screen bg-stone-50 font-sans text-stone-900 pb-24">
-
-      {/* HEADER MINIMALISTA */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="font-serif text-2xl tracking-tight text-stone-900">
-            Perfumaria CS
-          </Link>
-
-          <nav className="flex items-center gap-6 text-xs font-bold tracking-widest uppercase text-stone-500">
-            {perfilUsuario ? (
-              <Link to="/perfil" className="flex items-center gap-2 hover:text-stone-900 transition-colors">
-                <FiUser className="text-lg" /> O Meu Perfil
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="hover:text-stone-900 transition-colors">Entrar</Link>
-                <Link to="/cadastro" className="bg-stone-900 text-white px-5 py-2 hover:bg-stone-800 transition-colors">
-                  Descobrir Perfil
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
 
       {loading ? (
         <div className="flex justify-center py-32 text-stone-400 text-sm tracking-widest uppercase animate-pulse">

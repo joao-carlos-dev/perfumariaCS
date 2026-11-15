@@ -97,24 +97,6 @@ export function PerfumeDetail() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 font-sans pb-24">
-      {/* HEADER MINIMALISTA */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="font-serif text-2xl tracking-tight text-stone-900">
-            Perfumaria CS
-          </Link>
-          <nav className="flex items-center gap-6 text-xs font-bold tracking-widest uppercase text-stone-500">
-            {perfilUsuario ? (
-              <Link to="/perfil" className="flex items-center gap-2 hover:text-stone-900 transition-colors">
-                <FiUser className="text-lg" /> O Meu Perfil
-              </Link>
-            ) : (
-              <Link to="/login" className="hover:text-stone-900 transition-colors">Entrar</Link>
-            )}
-          </nav>
-        </div>
-      </header>
-
       <div className="max-w-6xl mx-auto px-6 pt-10">
         {/* Botão Voltar */}
         <button

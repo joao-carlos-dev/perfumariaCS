@@ -8,6 +8,8 @@ import { Cadastro } from "./components/Cadastro";
 import { Perfil } from "./components/Perfil";
 import ReactGA from 'react-ga4';
 import { useEffect } from "react";
+import { EsqueceuSenha } from "./components/EsqueceuSenha";
+import { AtualizarSenha } from "./components/AtualizarSenha";
 
 // 1. Inicializa o Analytics com o seu ID (coloque o seu ID real aqui)
 ReactGA.initialize('G-XXXXXXXXXX');
@@ -30,13 +32,15 @@ function App() {
 
       <Header />
       <AnalyticsTracker />
-      <main className="grow w-full pt-16">
+      <main className="grow w-full">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/perfume/:id" element={<PerfumeDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/esqueceu-senha" element={<EsqueceuSenha />} />
+          <Route path="/atualizar-senha" element={<AtualizarSenha />} />
         </Routes>
       </main>
 

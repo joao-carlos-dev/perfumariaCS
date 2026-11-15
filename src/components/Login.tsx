@@ -115,6 +115,12 @@ export function Login() {
                 {mostrarSenha ? <FiEyeOff size={18} /> : <FiEye size={18} />}
               </button>
             </div>
+
+            <div className="text-right mt-2">
+              <Link to="/esqueceu-senha" className="text-xs text-amber-500 hover:text-amber-400 transition-colors">
+                Esqueceu-se da senha?
+              </Link>
+            </div>
           </div>
 
           {erro && (
@@ -126,7 +132,7 @@ export function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2"
+            className="mt-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? 'A autenticar...' : 'Entrar'} <FiArrowUpRight className="text-lg" />
           </button>

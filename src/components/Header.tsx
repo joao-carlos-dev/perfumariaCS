@@ -1,58 +1,90 @@
 import { useState, useEffect } from 'react';
-import { FiUser } from 'react-icons/fi';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiUser, FiLogOut } from 'react-icons/fi';
+import { supabase } from '../supabase';
 
 export function Header() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [session, setSession] = useState<any>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    // 1. Verifica se já existe sessão ao carregar a página
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
 
-    const handleScroll = () => {
-      setIsVisible(false);
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        setIsVisible(true);
-      }, 300);
-    };
+    // 2. Fica "à escuta" de alterações (Login ou Logout) para atualizar o cabeçalho na hora
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(timeoutId);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  return (
-    <header
-      className={`bg-neutral-950 border-b border-neutral-800 text-stone-200 w-full fixed top-0 z-50 transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : '-translate-y-full'
-        }`}
-    >
-      <div className="container mx-auto p-4 flex justify-between items-center">
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    navigate('/');
+  };
 
-        {/* Logótipo Premium */}
-        <Link to="/" className="text-lg font-serif font-bold text-amber-500 hover:text-amber-400 transition-colors flex items-center gap-3">
-          <span className="border border-amber-600/50 p-1 px-2 text-sm">CS</span>
-          <span className="hidden sm:inline">CARLOS SOUZA</span>
+  return (
+    <header className="bg-neutral-950 border-b border-neutral-900 py-4 px-6 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto flex justify-between items-center">
+        
+        {/* LOGO */}
+        <Link to="/" className="flex items-center gap-4">
+          <div className="w-10 h-10 border border-amber-600 flex items-center justify-center">
+            <span className="font-serif text-amber-500 font-bold text-lg">CS</span>
+          </div>
+          <span className="font-serif text-xl tracking-widest text-amber-500 hidden sm:block">
+            CARLOS SOUZA
+          </span>
         </Link>
 
-        {/* Menu */}
-        <nav>
-          <ul className="flex gap-6 font-semibold text-xs tracking-widest uppercase items-center">
-            <li>
-              <Link to="/" className="hover:text-amber-500 transition-colors">Início</Link>
-            </li>
-            <li>
-              <Link to="/cadastro" className="bg-amber-600 hover:bg-amber-700 text-neutral-950 px-4 py-2 transition-colors">
+        {/* NAVEGAÇÃO */}
+        <nav className="flex items-center gap-6 text-xs font-bold tracking-widest uppercase text-stone-200">
+          <Link to="/" className="hover:text-amber-500 transition-colors">
+            Início
+          </Link>
+          
+          {session ? (
+            /* --- VISUAL PARA UTILIZADOR LOGADO --- */
+            <div className="flex items-center gap-5 ml-2 border-l border-neutral-800 pl-6">
+              <Link 
+                to="/perfil" 
+                className="flex items-center gap-2 hover:text-amber-500 transition-colors"
+                title="Aceder ao Perfil"
+              >
+                <FiUser className="text-lg" />
+                <span className="hidden sm:block">Meu Perfil</span>
+              </Link>
+              
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-stone-400 hover:text-red-500 transition-colors cursor-pointer"
+                title="Sair da Conta"
+              >
+                <FiLogOut className="text-lg" />
+              </button>
+            </div>
+          ) : (
+            /* --- VISUAL PARA VISITANTE --- */
+            <div className="flex items-center gap-5 ml-2">
+              <Link 
+                to="/login" 
+                className="bg-amber-600 hover:bg-amber-700 text-neutral-950 px-5 py-2.5 transition-colors hidden sm:block"
+              >
                 Entrar / Cadastrar
               </Link>
-            </li>
-            <li>
-              <Link to="/perfil" className="hover:text-amber-500 transition-colors">
+              <Link 
+                to="/login" 
+                className="hover:text-amber-500 transition-colors"
+                title="Entrar"
+              >
                 <FiUser className="text-xl" />
               </Link>
-            </li>
-          </ul>
+            </div>
+          )}
         </nav>
       </div>
     </header>
