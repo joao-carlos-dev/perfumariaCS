@@ -1,66 +1,88 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiArrowUpRight, FiEye, FiEyeOff, FiShield } from 'react-icons/fi';
-import ReactGA from 'react-ga4';
-
-// Sanitização básica contra injeção de tags HTML
-function sanitizeText(value: string): string {
-  return value.replace(/[<>]/g, '');
-}
+import { FiEye, FiEyeOff, FiArrowUpRight } from 'react-icons/fi';
+import { supabase } from '../supabase';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState('');
-  
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
+    setLoading(true);
 
-    if (senha.length < 8) {
-      setErro('Credenciais inválidas. Verifique o seu e-mail e senha.');
-      return;
-    }
+    try {
+      // 1. Autentica no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: senha,
+      });
 
-    // Verifica se existe um perfil registado neste dispositivo
-    const perfilSalvo = localStorage.getItem('perfilCompleto');
-
-    if (perfilSalvo) {
-      const dados = JSON.parse(perfilSalvo);
-      
-      // Se o e-mail coincidir com o registado, carrega o perfil dele
-      if (dados.email && dados.email.toLowerCase() === email.toLowerCase()) {
-        localStorage.setItem('nomeUsuario', dados.nome);
-        
-        ReactGA.event({
-          category: 'Autenticação',
-          action: 'Login_Sucesso'
-        });
-
-        navigate('/perfil');
-        return;
-      } else {
-        setErro('E-mail não encontrado neste dispositivo. Crie a sua assinatura primeiro.');
-        return;
+      if (authError) {
+        if (authError.message.includes('Email not confirmed')) {
+          throw new Error('Por favor, confirme o seu e-mail através do link que enviámos para a sua caixa de entrada antes de entrar.');
+        }
+        if (authError.message.includes('Invalid login credentials')) {
+          throw new Error('E-mail ou senha incorretos.');
+        }
+        throw new Error(authError.message);
       }
-    }
 
-    // Caso ainda não tenha feito o cadastro na máquina atual
-    setErro('Nenhuma assinatura encontrada para este e-mail. Crie a sua conta abaixo.');
+      const userId = authData.user.id;
+
+      // 2. Busca os dados pessoais na tabela 'clientes'
+      const { data: clienteData, error: clienteError } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (clienteError) throw new Error('Erro ao carregar cliente: ' + clienteError.message);
+
+      // 3. Busca as preferências na tabela 'perfis_olfativos'
+      const { data: quizData, error: quizError } = await supabase
+        .from('perfis_olfativos')
+        .select('*')
+        .eq('cliente_id', userId)
+        .single();
+
+      if (quizError) throw new Error('Erro ao carregar quiz: ' + quizError.message);
+
+      // 4. Monta o objeto unificado para a Vitrine VIP e Header
+      const perfilCompleto = {
+        nome: clienteData.nome,
+        email: clienteData.email,
+        telefone: clienteData.telefone,
+        consentimentoLGPD: clienteData.consentimento_lgpd,
+        dataCadastro: clienteData.data_cadastro,
+        ocasiao: quizData.ocasiao,
+        personalidade: quizData.personalidade,
+        sensacao: quizData.sensacao,
+      };
+
+      localStorage.setItem('nomeUsuario', clienteData.nome);
+      localStorage.setItem('perfilCompleto', JSON.stringify(perfilCompleto));
+
+      navigate('/', { state: { perfilUsuario: perfilCompleto } });
+    } catch (err: any) {
+      setErro(err.message || 'Erro ao iniciar sessão.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4 py-24">
-      <div className="bg-neutral-800 border border-amber-700/30 p-8 rounded-lg max-w-md w-full shadow-2xl text-stone-200 min-h-[420px] flex flex-col justify-center animate-fade-in">
-        
+      <div className="bg-neutral-800 border border-amber-700/30 p-8 rounded-lg max-w-md w-full shadow-2xl text-stone-200">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-serif font-bold text-amber-500 mb-2">Perfumaria CS</h1>
-          <p className="text-sm text-stone-400 tracking-wide">
-            Aceda à sua assinatura olfativa
-          </p>
+          <p className="text-sm text-stone-400 tracking-wide">Aceda à sua curadoria exclusiva</p>
         </div>
 
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -69,28 +91,21 @@ export function Login() {
             <input
               type="email"
               required
-              maxLength={100}
-              autoComplete="email"
-              placeholder="seu@email.com"
               className="w-full p-3 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
               value={email}
-              onChange={(e) => setEmail(sanitizeText(e.target.value.trim()))}
+              onChange={e => setEmail(e.target.value)}
             />
           </div>
 
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-sm text-stone-300">Senha</label>
-            </div>
+            <label className="block text-sm mb-1 text-stone-300">Senha</label>
             <div className="relative">
               <input
                 type={mostrarSenha ? 'text' : 'password'}
                 required
-                maxLength={15}
-                autoComplete="current-password"
                 className="w-full p-3 pr-10 bg-neutral-900 border border-neutral-700 rounded focus:border-amber-500 focus:outline-none text-white transition-colors"
                 value={senha}
-                onChange={(e) => setSenha(e.target.value)}
+                onChange={e => setSenha(e.target.value)}
               />
               <button
                 type="button"
@@ -103,31 +118,26 @@ export function Login() {
           </div>
 
           {erro && (
-            <div className="bg-red-950/50 border border-red-800/50 text-red-300 p-3 rounded text-xs font-semibold text-center mt-1">
+            <div className="bg-red-950/50 border border-red-800/50 text-red-300 p-3 rounded text-xs font-semibold text-center">
               {erro}
             </div>
           )}
 
           <button
             type="submit"
-            className="mt-4 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2"
+            disabled={loading}
+            className="mt-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-neutral-950 font-bold py-3 px-4 rounded transition-colors uppercase tracking-wider text-sm flex items-center justify-center gap-2"
           >
-            Entrar <FiArrowUpRight className="text-lg" />
+            {loading ? 'A autenticar...' : 'Entrar'} <FiArrowUpRight className="text-lg" />
           </button>
-
-          <div className="flex items-center justify-center gap-1.5 text-[10px] text-stone-500 mt-1">
-            <FiShield className="text-amber-600" />
-            <span>Acesso protegido · Ambiente seguro</span>
-          </div>
 
           <p className="text-center text-sm text-stone-400 mt-4">
             Ainda não descobriu o seu perfil?{' '}
             <Link to="/cadastro" className="text-amber-500 hover:underline font-semibold">
-              Criar assinatura
+              Fazer Quiz Olfativo
             </Link>
           </p>
         </form>
-
       </div>
     </div>
   );

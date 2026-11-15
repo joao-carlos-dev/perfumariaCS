@@ -1,127 +1,201 @@
-import { useParams, Link } from 'react-router-dom';
-import { perfumes } from '../data/perfumes';
-import { FaWhatsapp } from 'react-icons/fa';
-import ReactGA from 'react-ga4';
+import { useState, useEffect } from 'react';
+import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiArrowUpRight, FiCheck, FiShield, FiUser } from 'react-icons/fi';
+import { supabase } from '../supabase';
+
+interface Perfume {
+  id: string;
+  nome: string;
+  marca: string;
+  descricao: string;
+  preco: number;
+  imagem_url: string;
+  sensacao_indicada: string;
+}
 
 export function PerfumeDetail() {
-  const { name } = useParams<{ name: string }>();
-  const perfume = perfumes.find((p) => p.name === name);
+  const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Tratamento caso o perfume não seja encontrado
-  if (!perfume) {
+  // Tenta usar o perfume já carregado pela Home para transição instantânea
+  const [perfume, setPerfume] = useState<Perfume | null>(location.state?.perfume || null);
+  const [loading, setLoading] = useState(!location.state?.perfume);
+  const [perfilUsuario, setPerfilUsuario] = useState<any>(location.state?.perfilUsuario || null);
+
+  // Coloque o seu número real aqui (com 55 + DDD)
+  const WHATSAPP_NUMERO = '5548991268854';
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+
+    if (!perfilUsuario) {
+      const guardado = localStorage.getItem('perfilCompleto');
+      if (guardado) setPerfilUsuario(JSON.parse(guardado));
+    }
+
+    // Se o utilizador acedeu ao link direto (F5), busca o perfume no Supabase pelo ID
+    if (!perfume && id) {
+      const buscarPerfume = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('perfumes')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          if (error) throw error;
+          setPerfume(data);
+        } catch (error) {
+          console.error('Erro ao carregar detalhes do perfume:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      buscarPerfume();
+    }
+  }, [id, perfume, perfilUsuario]);
+
+  const formatarPreco = (valor: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(valor);
+  };
+
+  const handleComprarWhatsApp = () => {
+    if (!perfume) return;
+
+    const texto = perfilUsuario
+      ? `Olá! Sou o(a) ${perfilUsuario.nome.split(' ')[0]}, o meu perfil olfativo na Perfumaria CS deu *${perfilUsuario.sensacao}* (${perfilUsuario.ocasiao}) e gostaria de adquirir o perfume *${perfume.nome}* (${perfume.marca}).`
+      : `Olá! Vi o perfume *${perfume.nome}* (${perfume.marca}) no catálogo da Perfumaria CS e gostaria de saber mais detalhes para compra.`;
+
+    const url = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center bg-stone-50">
-        <h2 className="text-3xl font-serif text-neutral-900 mb-4">Fragrância não encontrada</h2>
-        <Link to="/" className="text-amber-600 hover:text-amber-700 font-bold uppercase tracking-widest text-xs">
-          ← Voltar à vitrine
-        </Link>
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-stone-400 text-xs tracking-widest uppercase animate-pulse">
+        A carregar detalhes da fragrância...
       </div>
     );
   }
 
-  // --- CONFIGURAÇÃO DO WHATSAPP COM NOME DO UTILIZADOR ---
-  const numeroWhatsApp = "5548998396111"; 
-  
-  // Tenta procurar o nome do utilizador na memória do navegador
-  const nomeUsuario = localStorage.getItem('nomeUsuario');
-  
-  // Cria a saudação de forma dinâmica: com ou sem nome
-  const saudacao = nomeUsuario 
-    ? `Olá! O meu nome é *${nomeUsuario}* e vim pelo site Perfumaria CS. Tenho interesse` 
-    : `Olá! Vim pelo site Perfumaria CS e tenho interesse`;
+  if (!perfume) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-6 text-center">
+        <h2 className="font-serif text-2xl text-stone-800 mb-4">Fragrância não encontrada</h2>
+        <button
+          onClick={() => navigate('/')}
+          className="bg-neutral-950 text-white text-xs font-bold uppercase tracking-widest px-6 py-3"
+        >
+          Voltar ao Catálogo
+        </button>
+      </div>
+    );
+  }
 
-  const mensagem = `${saudacao} no perfume *${perfume.name}* da marca ${perfume.brand}. Gostaria de obter mais informações!`;
-  const linkWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`;
-
-  const handleWhatsAppClick = () => {
-  // Regista o clique especificando qual perfume gerou o interesse
-  ReactGA.event({
-    category: 'Conversão',
-    action: 'Clique_Botao_WhatsApp',
-    label: perfume.name // Ex: 'Vanilla Powder'
-  });
-};
+  const isMatch = perfilUsuario?.sensacao === perfume.sensacao_indicada;
 
   return (
-    <div className="min-h-screen bg-stone-50 pt-28 pb-20 px-4">
-      <div className="container mx-auto max-w-5xl">
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+    <div className="min-h-screen bg-stone-50 text-stone-900 font-sans pb-24">
+      {/* HEADER MINIMALISTA */}
+      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <Link to="/" className="font-serif text-2xl tracking-tight text-stone-900">
+            Perfumaria CS
+          </Link>
+          <nav className="flex items-center gap-6 text-xs font-bold tracking-widest uppercase text-stone-500">
+            {perfilUsuario ? (
+              <Link to="/perfil" className="flex items-center gap-2 hover:text-stone-900 transition-colors">
+                <FiUser className="text-lg" /> O Meu Perfil
+              </Link>
+            ) : (
+              <Link to="/login" className="hover:text-stone-900 transition-colors">Entrar</Link>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-6 pt-10">
+        {/* Botão Voltar */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors mb-8 cursor-pointer"
+        >
+          <FiArrowLeft className="text-sm" /> Voltar para a curadoria
+        </button>
+
+        {/* Card Principal de Detalhes */}
+        <div className="bg-white border border-stone-200 grid grid-cols-1 md:grid-cols-2 overflow-hidden shadow-sm animate-fade-in">
           
           {/* Coluna Esquerda: Imagem */}
-          <div className="bg-white border border-stone-200 p-8 flex justify-center items-center h-[400px] md:h-[550px] shadow-sm relative group">
-            <span className="absolute top-4 left-4 bg-neutral-950 text-amber-500 text-[10px] uppercase tracking-widest px-3 py-1 font-bold z-10">
-              Destaque
-            </span>
-            <img
-              src={perfume.image}
-              alt={perfume.name}
-              className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500"
-            />
+          <div className="bg-stone-100 p-12 flex items-center justify-center min-h-95 md:min-h-125 relative">
+            {isMatch && (
+              <span className="absolute top-6 left-6 bg-amber-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5">
+                Compatível com o seu Perfil ({perfume.sensacao_indicada})
+              </span>
+            )}
+            {perfume.imagem_url ? (
+              <img
+                src={perfume.imagem_url}
+                alt={perfume.nome}
+                className="max-h-90 w-auto object-contain mix-blend-multiply"
+              />
+            ) : (
+              <div className="text-stone-400 font-serif text-3xl text-center">
+                {perfume.nome}
+              </div>
+            )}
           </div>
 
-          {/* Coluna Direita: Detalhes do Produto */}
-          <div className="flex flex-col h-full justify-center">
-            <span className="text-amber-700 text-xs tracking-widest uppercase font-bold mb-2">
-              {perfume.brand}
-            </span>
-            
-            <h1 className="text-4xl md:text-5xl font-serif text-neutral-900 mb-6 leading-tight">
-              {perfume.name}
-            </h1>
-            
-            <div className="mb-6 pb-6 border-b border-stone-200">
-              <span className="block text-[10px] text-stone-500 uppercase tracking-wider mb-1">Valor</span>
-              <span className="text-3xl font-bold text-neutral-900">
-                ${perfume.price.toFixed(2)}
+          {/* Coluna Direita: Informações e Botão do WhatsApp */}
+          <div className="p-8 md:p-12 flex flex-col justify-between">
+            <div>
+              <span className="text-xs text-amber-700 font-bold tracking-[0.2em] uppercase block mb-2">
+                {perfume.marca}
               </span>
-            </div>
+              <h1 className="font-serif text-3xl md:text-4xl text-stone-900 mb-4">
+                {perfume.nome}
+              </h1>
 
-            <p className="text-stone-600 mb-8 leading-relaxed text-sm md:text-base">
-              {perfume.description}
-            </p>
+              <div className="inline-block border border-stone-200 bg-stone-50 px-3 py-1 text-[11px] text-stone-600 uppercase tracking-widest mb-6">
+                Família Olfativa: <strong>{perfume.sensacao_indicada}</strong>
+              </div>
 
-            {/* Notas Olfativas */}
-            <div className="mb-10">
-              <span className="block text-[10px] text-neutral-900 font-bold uppercase tracking-wider mb-3">
-                Notas Olfativas
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {perfume.notes.map((note, index) => (
-                  <span
-                    key={index}
-                    className="bg-stone-100 border border-stone-200 text-stone-600 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider"
-                  >
-                    {note}
-                  </span>
-                ))}
+              <p className="text-stone-600 text-sm leading-relaxed mb-8">
+                {perfume.descricao}
+              </p>
+
+              <div className="border-t border-stone-100 pt-6 space-y-3 text-xs text-stone-500 mb-8">
+                <div className="flex items-center gap-2">
+                  <FiCheck className="text-amber-700" />
+                  <span>Fragrância 100% original com selo de autenticidade</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FiShield className="text-amber-700" />
+                  <span>Atendimento personalizado via consultor exclusivo</span>
+                </div>
               </div>
             </div>
 
-            {/* Botões de Ação */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-auto">
-              
-              <Link 
-                to="/" 
-                className="border border-stone-300 hover:border-amber-500 text-neutral-900 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto"
-              >
-                Voltar à Loja
-              </Link>
+            <div className="border-t border-stone-200 pt-6">
+              <div className="mb-6">
+                <span className="text-[10px] text-stone-400 uppercase tracking-widest block mb-1">
+                  Valor do Investimento
+                </span>
+                <span className="text-3xl font-bold text-stone-900">
+                  {formatarPreco(perfume.preco)}
+                </span>
+              </div>
 
-              <a 
-                href={linkWhatsApp}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleWhatsAppClick}
-                className="bg-neutral-950 hover:bg-amber-600 text-white hover:text-neutral-950 text-xs font-bold tracking-widest uppercase px-8 py-4 transition-colors text-center w-full sm:w-auto shadow-md flex items-center justify-center gap-2"
+              <button
+                onClick={handleComprarWhatsApp}
+                className="w-full bg-neutral-950 hover:bg-stone-800 text-white font-bold py-4 px-6 text-xs uppercase tracking-[0.2em] transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
-                <FaWhatsapp className="text-lg" />
-                Comprar pelo WhatsApp
-              </a>
-
+                Adquirir via WhatsApp <FiArrowUpRight className="text-base" />
+              </button>
             </div>
-
           </div>
+
         </div>
       </div>
     </div>

@@ -1,139 +1,225 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PerfumeCard } from './PerfumeCard';
-import { perfumes } from '../data/perfumes';
-import { FiArrowUpRight } from 'react-icons/fi';
-import logo from '../assets/logo-perfumariaCS.png';
+import { FiUser, FiArrowUpRight, FiSearch } from 'react-icons/fi';
+import { supabase } from '../supabase';
+
+interface Perfume {
+  id: string;
+  nome: string;
+  marca: string;
+  descricao: string;
+  preco: number;
+  imagem_url: string;
+  sensacao_indicada: string;
+}
 
 export function Home() {
-  const [searchTerm, setSearchTerm] = useState('');
-  
   const location = useLocation();
-  const perfilUsuario = location.state?.perfilUsuario;
+  const [perfumes, setPerfumes] = useState<Perfume[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [perfilUsuario, setPerfilUsuario] = useState<any>(null);
+  const [busca, setBusca] = useState('');
 
-  // Efeito que faz o scroll automático se o utilizador vier do cadastro
+  // Número do WhatsApp da loja (Substitua pelo seu com o código do país e DDD, sem espaços. Ex: 5548991268854)
+  const WHATSAPP_NUMERO = '5548999999999';
+
   useEffect(() => {
-    if (perfilUsuario) {
-      // Usamos um pequeno atraso (300ms) para garantir que a página já foi desenhada pelo React
-      setTimeout(() => {
-        const elementoVIP = document.getElementById('perfil-analisado');
-        if (elementoVIP) {
-          elementoVIP.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 300);
+    let perfil = location.state?.perfilUsuario;
+    if (!perfil) {
+      const guardado = localStorage.getItem('perfilCompleto');
+      if (guardado) perfil = JSON.parse(guardado);
     }
-  }, [perfilUsuario]);
+    setPerfilUsuario(perfil);
 
-  const filteredPerfumes = perfumes.filter((perfume) => {
-    const term = searchTerm.toLowerCase();
-    const matchesName = perfume.name.toLowerCase().includes(term);
-    const matchesBrand = perfume.brand.toLowerCase().includes(term);
-    return matchesName || matchesBrand;
-  });
+    const carregarCatálogo = async () => {
+      try {
+        const { data, error } = await supabase.from('perfumes').select('*');
+        if (error) throw error;
+        setPerfumes(data || []);
+      } catch (error) {
+        console.error("Erro ao carregar perfumes:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    carregarCatálogo();
+  }, [location.state]);
 
-  let recomendados: typeof perfumes = [];
-  if (perfilUsuario) {
-    const sensacao = perfilUsuario.sensacao;
-    
-    recomendados = perfumes.filter(p => {
-      const texto = (p.description + " " + p.notes.join(" ")).toLowerCase();
-      if (sensacao === 'Doce') return texto.includes('vanilla') || texto.includes('amber') || texto.includes('doce') || texto.includes('coffee') || texto.includes('oud');
-      if (sensacao === 'Fresco') return texto.includes('fresh') || texto.includes('bergamot') || texto.includes('fresco') || texto.includes('citrus');
-      if (sensacao === 'Floral') return texto.includes('floral') || texto.includes('jasmine') || texto.includes('rose') || texto.includes('flor');
-      if (sensacao === 'Amadeirado') return texto.includes('wood') || texto.includes('cedar') || texto.includes('amadeirado') || texto.includes('oud');
-      return true;
-    }).slice(0, 3);
+  const formatarPreco = (valor: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(valor);
+  };
 
-    if (recomendados.length === 0) recomendados = perfumes.slice(0, 3);
-  }
+  // Separa os perfumes recomendados dos restantes
+  const perfumesRecomendados = perfilUsuario
+    ? perfumes.filter(p => p.sensacao_indicada === perfilUsuario.sensacao).slice(0, 3)
+    : [];
+
+  // Filtra o catálogo completo pela barra de pesquisa
+  const catalogoFiltrado = perfumes.filter(p =>
+    p.nome.toLowerCase().includes(busca.toLowerCase()) ||
+    p.marca.toLowerCase().includes(busca.toLowerCase())
+  );
 
   return (
-    <div className="w-full flex flex-col">
-      
-      {/* SECÇÃO HERO (Banner Escuro Premium) */}
-      <section className="bg-gradient-to-br from-neutral-900 to-neutral-950 text-white pt-24 pb-20 px-4 overflow-hidden">
-        <div className="container mx-auto grid md:grid-cols-2 gap-12 items-center">
-          <div className="z-10">
-            <span className="text-amber-600 text-xs tracking-[0.2em] uppercase font-bold mb-4 block">
-              Carlos Souza · Perfumaria
-            </span>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-medium mb-6 leading-tight tracking-tight">
-              Sua presença começa pela <i className="text-amber-500 font-light italic">fragrância.</i>
-            </h1>
-            <p className="text-stone-400 mb-8 max-w-md text-sm md:text-base leading-relaxed">
-              Perfumes árabes e importados escolhidos para quem transforma cada momento em uma assinatura inesquecível.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <a href="#produtos" className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-neutral-950 font-bold py-3 px-6 text-xs tracking-widest uppercase transition-colors">
-                Explorar Perfumes <FiArrowUpRight className="text-lg" />
-              </a>
-              <Link to="/cadastro" className="flex items-center gap-2 border border-stone-600 hover:border-amber-500 text-white font-bold py-3 px-6 text-xs tracking-widest uppercase transition-colors">
-                Encontre o seu <FiArrowUpRight className="text-lg" />
-              </Link>
-            </div>
-          </div>
-          <div className="relative flex justify-center items-center min-h-[400px]">
-            <div className="absolute w-72 h-72 md:w-96 md:h-96 bg-amber-600/10 rounded-full blur-3xl"></div>
-            <div className="absolute w-64 h-64 md:w-80 md:h-80 border border-amber-600/20 rounded-full"></div>
-            <img src={logo} alt="logo da marca" className="relative z-10 w-3/5 object-contain drop-shadow-2xl" />
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-900 pb-24">
 
-      <section id="produtos" className="bg-stone-50 py-16 px-4 border-t border-stone-200">
-        <div className="container mx-auto">
-          
-          {/* VITRINE VIP COM ID PARA O SCROLL AUTOMÁTICO */}
-          {perfilUsuario && (
-            <div id="perfil-analisado" className="mb-16 p-8 border border-amber-500/30 bg-white shadow-sm scroll-mt-24">
-              <div className="text-center mb-8">
-                <span className="text-amber-700 text-[10px] tracking-widest uppercase font-bold">Perfil Analisado</span>
-                <h2 className="text-2xl md:text-3xl font-serif text-neutral-900 mt-2">
+      {/* HEADER MINIMALISTA */}
+      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <Link to="/" className="font-serif text-2xl tracking-tight text-stone-900">
+            Perfumaria CS
+          </Link>
+
+          <nav className="flex items-center gap-6 text-xs font-bold tracking-widest uppercase text-stone-500">
+            {perfilUsuario ? (
+              <Link to="/perfil" className="flex items-center gap-2 hover:text-stone-900 transition-colors">
+                <FiUser className="text-lg" /> O Meu Perfil
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="hover:text-stone-900 transition-colors">Entrar</Link>
+                <Link to="/cadastro" className="bg-stone-900 text-white px-5 py-2 hover:bg-stone-800 transition-colors">
+                  Descobrir Perfil
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      {loading ? (
+        <div className="flex justify-center py-32 text-stone-400 text-sm tracking-widest uppercase animate-pulse">
+          A carregar catálogo...
+        </div>
+      ) : (
+        <div className="max-w-350 mx-auto px-6">
+
+          {/* SECÇÃO VIP: SELEÇÃO EXCLUSIVA */}
+          {perfilUsuario && perfumesRecomendados.length > 0 && (
+            <section className="py-16 border-b border-stone-200 mb-16 animate-fade-in">
+              <div className="text-center max-w-2xl mx-auto mb-12">
+                <span className="text-[10px] text-amber-700 font-bold tracking-[0.2em] uppercase">Perfil Analisado</span>
+                <h2 className="text-3xl font-serif text-stone-900 mt-2 mb-4">
                   Seleção exclusiva para {perfilUsuario.nome.split(' ')[0]}
                 </h2>
-                <p className="text-stone-500 mt-2 text-sm max-w-lg mx-auto">
-                  Com base no seu perfil <strong>{perfilUsuario.personalidade.toLowerCase()}</strong> e preferência por notas <strong>{perfilUsuario.sensacao.toLowerCase()}s</strong>, separamos estas 3 opções para <strong>{perfilUsuario.ocasiao.toLowerCase()}</strong>.
+                <p className="text-stone-500 text-sm">
+                  Com base no seu perfil <strong>{perfilUsuario.personalidade.toLowerCase()}</strong> e preferência por notas <strong>{perfilUsuario.sensacao.toLowerCase()}s</strong>, separamos estas opções para <strong>{perfilUsuario.ocasiao.toLowerCase()}</strong>.
                 </p>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {recomendados.map((perfume) => (
-                  <PerfumeCard key={`rec-${perfume.id}`} perfume={perfume} />
+
+              {/* Grelha de Recomendações - Proporções ajustadas */}
+              <div className="flex justify-center flex-wrap gap-6">
+                {perfumesRecomendados.map(perfume => (
+                  <div key={`rec-${perfume.id}`} className="bg-white border border-stone-200 flex flex-col group w-full max-w-90">
+
+                    {/* Área da Imagem Fixa e Menor */}
+                    <div className="bg-stone-100 h-70 w-full p-8 flex items-center justify-center overflow-hidden">
+                      {perfume.imagem_url ? (
+                        <img src={perfume.imagem_url} alt={perfume.nome} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full bg-stone-200/50 flex items-center justify-center text-stone-400 font-serif text-xl">
+                          {perfume.nome}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Área de Texto Compacta */}
+                    <div className="p-6 flex flex-col justify-between flex-1">
+                      <div>
+                        <span className="text-[10px] text-amber-700 font-bold tracking-widest uppercase mb-1 block">
+                          {perfume.marca}
+                        </span>
+                        <h3 className="font-serif text-[22px] text-stone-900 mb-2">{perfume.nome}</h3>
+                        <p className="text-stone-500 text-[13px] leading-relaxed line-clamp-2">{perfume.descricao}</p>
+                      </div>
+                      <div className="mt-8 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-stone-400 uppercase tracking-widest block mb-1">Valor</span>
+                          <span className="font-bold text-stone-900 text-lg">{formatarPreco(perfume.preco)}</span>
+                        </div>
+                        <Link
+                          to={`/perfume/${perfume.id}`}
+                          state={{ perfume, perfilUsuario }}
+                          className="bg-neutral-950 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2.5 flex items-center gap-1.5 hover:bg-stone-800 transition-colors"
+                        >
+                          Saiba Mais <FiArrowUpRight className="text-sm" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
-          {/* VITRINE GERAL */}
-          <div className="text-center max-w-2xl mx-auto mb-10 mt-10">
-            <span className="text-amber-700 text-xs tracking-widest uppercase font-bold">Catálogo Completo</span>
-            <h2 className="text-3xl md:text-4xl font-serif text-neutral-900 mt-2 mb-4">Nossa Curadoria</h2>
-          </div>
+          {/* SECÇÃO CATÁLOGO COMPLETO */}
+          <section className="py-8">
+            <div className="text-center mb-10">
+              <span className="text-[10px] text-stone-500 font-bold tracking-[0.2em] uppercase">Catálogo Completo</span>
+              <h2 className="text-3xl font-serif text-stone-900 mt-2 mb-8">Nossa Curadoria</h2>
 
-          <div className="max-w-xl mx-auto mb-12">
-            <input
-              type="text"
-              placeholder="Buscar por perfume ou marca..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-4 bg-white border border-stone-300 text-stone-700 placeholder-stone-400 rounded focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all shadow-sm"
-            />
-          </div>
-
-          {filteredPerfumes.length === 0 ? (
-            <div className="text-center text-stone-500 py-10 border border-dashed border-stone-300">
-              Nenhum perfume encontrado. Tente outro nome ou marca.
+              <div className="max-w-md mx-auto relative">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por perfume ou marca..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 border border-stone-300 rounded focus:outline-none focus:border-stone-500 text-sm bg-white"
+                />
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredPerfumes.map((perfume) => (
-                <PerfumeCard key={perfume.id} perfume={perfume} />
+
+            {/* Grelha de Catálogo (com até 4 cartões lado a lado em ecrãs grandes) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-center">
+              {catalogoFiltrado.map(perfume => (
+                <div key={perfume.id} className="bg-white border border-stone-200 flex flex-col group w-full max-w-[320px]">
+
+                  {/* Área da Imagem Fixa e Menor para Catálogo */}
+                  <div className="bg-stone-100 h-60 w-full p-6 flex items-center justify-center overflow-hidden">
+                    {perfume.imagem_url ? (
+                      <img src={perfume.imagem_url} alt={perfume.nome} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full bg-stone-200/50 flex items-center justify-center text-stone-400 font-serif text-lg text-center px-2">
+                        {perfume.nome}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Área de Texto Menor para Catálogo */}
+                  <div className="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <span className="text-[10px] text-amber-700 font-bold tracking-widest uppercase mb-1 block">
+                        {perfume.marca}
+                      </span>
+                      <h3 className="font-serif text-[18px] text-stone-900 mb-2 truncate">{perfume.nome}</h3>
+                      <p className="text-stone-500 text-[12px] leading-relaxed line-clamp-2">{perfume.descricao}</p>
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-between pt-4 border-t border-stone-100">
+                      <span className="font-bold text-stone-900 text-base">{formatarPreco(perfume.preco)}</span>
+                      <Link
+                        to={`/perfume/${perfume.id}`}
+                        state={{ perfume, perfilUsuario }}
+                        className="text-[10px] font-bold text-stone-500 hover:text-stone-900 uppercase tracking-widest transition-colors flex items-center gap-1"
+                      >
+                        Saiba Mais <FiArrowUpRight />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-          
+
+            {catalogoFiltrado.length === 0 && (
+              <div className="text-center text-stone-500 py-12 text-sm">
+                Nenhum perfume encontrado com "{busca}".
+              </div>
+            )}
+          </section>
+
         </div>
-      </section>
+      )}
     </div>
   );
 }

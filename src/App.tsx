@@ -30,10 +30,10 @@ function App() {
 
       <Header />
       <AnalyticsTracker />
-      <main className="flex-grow w-full pt-16">
+      <main className="grow w-full pt-16">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/perfume/:name" element={<PerfumeDetail />} />
+          <Route path="/perfume/:id" element={<PerfumeDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/cadastro" element={<Cadastro />} />
           <Route path="/perfil" element={<Perfil />} />

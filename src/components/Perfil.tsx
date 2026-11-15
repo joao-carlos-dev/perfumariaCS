@@ -1,307 +1,314 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FiUser, FiSettings, FiLogOut, FiEdit3, FiTrash2, FiShield, FiArrowUpRight, FiShoppingBag } from 'react-icons/fi';
-
-function formatPhoneNumber(value: string): string {
-  const numbers = value.replace(/\D/g, '').slice(0, 11);
-  if (numbers.length === 0) return '';
-  if (numbers.length <= 2) return `(${numbers}`;
-  if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-  if (numbers.length <= 10) {
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
-  }
-  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-}
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  FiUser,
+  FiSettings,
+  FiShield,
+  FiShoppingBag,
+  FiLogOut,
+  FiEdit2,
+  FiTrash2,
+  FiRefreshCcw
+} from 'react-icons/fi';
+import { supabase } from '../supabase';
 
 export function Perfil() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dados');
-  const [mensagemSucesso, setMensagemSucesso] = useState('');
-  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [perfilUsuario, setPerfilUsuario] = useState<any>(null);
 
-  const [userData, setUserData] = useState({
-    nome: '',
-    email: '',
-    telefone: '',
-    ocasiao: 'Trabalho e dia a dia',
-    personalidade: 'Elegante',
-    sensacao: 'Amadeirado'
-  });
+  // Estados para o formulário de Meus Dados
+  const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [showQuizModal, setShowQuizModal] = useState(false);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const nomeSalvo = localStorage.getItem('nomeUsuario') || 'Visitante Elegante';
-    const perfilSalvo = localStorage.getItem('perfilCompleto');
-
-    if (perfilSalvo) {
-      const parsed = JSON.parse(perfilSalvo);
-      const { senha, ...dadosLimpos } = parsed;
-      setUserData(prev => ({ ...prev, ...dadosLimpos }));
-    } else {
-      setUserData(prev => ({ ...prev, nome: nomeSalvo }));
+    const dadosLocais = localStorage.getItem('perfilCompleto');
+    if (dadosLocais) {
+      const parsed = JSON.parse(dadosLocais);
+      setPerfilUsuario(parsed);
+      setNome(parsed.nome || '');
+      setTelefone(parsed.telefone || '');
     }
   }, []);
 
-  const handleSaveDados = (e: React.FormEvent) => {
+  // --- ATUALIZAR DADOS (NOME E TELEFONE) ---
+  const handleGuardarAlteracoes = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('nomeUsuario', userData.nome);
-    localStorage.setItem('perfilCompleto', JSON.stringify(userData));
-    mostrarSucesso('Dados pessoais atualizados com segurança!');
+    setLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Utilizador não autenticado.");
+
+      const { error } = await supabase
+        .from('clientes')
+        .update({ nome, telefone })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      const perfilAtualizado = { ...perfilUsuario, nome, telefone };
+      setPerfilUsuario(perfilAtualizado);
+      localStorage.setItem('perfilCompleto', JSON.stringify(perfilAtualizado));
+
+      alert('Informações atualizadas com sucesso!');
+    } catch (error: any) {
+      console.error("Erro ao atualizar:", error.message);
+      alert('Erro ao guardar alterações.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveOlfativo = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem('perfilCompleto', JSON.stringify(userData));
-    mostrarSucesso('Nova assinatura olfativa registada!');
+  // --- REFAZER QUIZ ---
+  const handleAbrirModalQuiz = () => {
+    setShowQuizModal(true);
   };
 
-  const mostrarSucesso = (msg: string) => {
-    setMensagemSucesso(msg);
-    setTimeout(() => setMensagemSucesso(''), 4000);
+  const confirmarRefazerQuiz = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Apaga o perfil olfativo antigo no banco
+        const { error } = await supabase.from('perfis_olfativos').delete().eq('cliente_id', user.id);
+        if (error) throw error;
+      }
+
+      // Limpa apenas o perfil completo, mantendo o nome do utilizador logado
+      localStorage.removeItem('perfilCompleto');
+
+      // Redireciona para o cadastro enviando um sinal de que está logado
+      navigate('/cadastro', { state: { isRefazendo: true } });
+    } catch (error: any) {
+      alert("Não foi possível reiniciar o quiz.");
+    } finally {
+      setLoading(false);
+      setShowQuizModal(false);
+    }
   };
 
-  const handleLogout = () => {
-    navigate('/login');
+  // --- EXCLUIR CONTA (LGPD) ---
+  const handleExcluirConta = async () => {
+    const confirmar = window.confirm("Tem a certeza que deseja excluir a sua conta permanentemente? Todos os seus dados serão apagados.");
+    if (!confirmar) return;
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.rpc('delete_user');
+      if (error) throw error;
+      await supabase.auth.signOut();
+      localStorage.clear();
+      navigate('/');
+    } catch (error: any) {
+      alert("Ocorreu um erro ao tentar apagar a sua conta.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleExcluirConta = () => {
-    localStorage.removeItem('nomeUsuario');
-    localStorage.removeItem('perfilCompleto');
-    navigate('/cadastro');
-  };
-
-  // Nova função para levar o utilizador e os seus dados para a Home
-  const handleVerVitrine = () => {
-    navigate('/', { state: { perfilUsuario: userData } });
+  // --- TERMINAR SESSÃO ---
+  const handleLogout = async () => {
+    setLoading(true);
+    await supabase.auth.signOut();
+    localStorage.clear();
+    navigate('/');
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 pt-28 pb-20 px-4">
-      <div className="container mx-auto max-w-5xl">
+    <div className="min-h-screen bg-stone-50 flex justify-center p-4 py-24 text-stone-800">
+      <div className="max-w-5xl w-full flex flex-col md:flex-row gap-6">
 
-        <div className="flex flex-col md:flex-row gap-8">
+        {/* SIDEBAR - MENU LATERAL */}
+        <div className="w-full md:w-64 bg-white border border-stone-200 shadow-sm flex flex-col py-4 h-fit">
+          <button
+            onClick={() => setActiveTab('dados')}
+            className={`flex items-center gap-3 w-full text-left px-6 py-4 text-xs font-bold tracking-wider uppercase transition-colors cursor-pointer ${activeTab === 'dados' ? 'bg-neutral-950 text-amber-500' : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
+              }`}
+          >
+            <FiUser className="text-lg" /> Meus Dados
+          </button>
 
-          {/* MENU LATERAL */}
-          <div className="w-full md:w-1/4">
-            <div className="bg-white border border-stone-200 p-4 shadow-sm flex flex-col gap-2">
-              <button
-                onClick={() => setActiveTab('dados')}
-                className={`flex items-center gap-3 w-full p-4 text-left text-sm uppercase tracking-wider font-bold transition-colors ${activeTab === 'dados' ? 'bg-neutral-950 text-amber-500' : 'text-stone-500 hover:bg-stone-50 hover:text-neutral-900 cursor-pointer'}`}
-              >
-                <FiUser className="text-lg" /> Meus Dados
-              </button>
+          <button
+            onClick={() => setActiveTab('perfil')}
+            className={`flex items-center gap-3 w-full text-left px-6 py-4 text-xs font-bold tracking-wider uppercase transition-colors cursor-pointer ${activeTab === 'perfil' ? 'bg-neutral-950 text-amber-500' : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900'
+              }`}
+          >
+            <FiSettings className="text-lg" /> Perfil Olfativo
+          </button>
 
-              <button
-                onClick={() => setActiveTab('assinatura')}
-                className={`flex items-center gap-3 w-full p-4 text-left text-sm uppercase tracking-wider font-bold transition-colors ${activeTab === 'assinatura' ? 'bg-neutral-950 text-amber-500' : 'text-stone-500 hover:bg-stone-50 hover:text-neutral-900 cursor-pointer'}`}
-              >
-                <FiSettings className="text-lg" /> Perfil Olfativo
-              </button>
+          <button
+            onClick={() => setActiveTab('privacidade')}
+            className={`flex items-center gap-3 w-full text-left px-6 py-4 text-xs font-bold tracking-wider uppercase transition-colors ${activeTab === 'privacidade' ? 'bg-neutral-950 text-amber-500' : 'text-stone-500 hover:bg-stone-100 hover:text-stone-900 cursor-pointer'
+              }`}
+          >
+            <FiShield className="text-lg" /> Privacidade (LGPD)
+          </button>
 
-              <button
-                onClick={() => setActiveTab('privacidade')}
-                className={`flex items-center gap-3 w-full p-4 text-left text-sm uppercase tracking-wider font-bold transition-colors ${activeTab === 'privacidade' ? 'bg-neutral-950 text-amber-500' : 'text-stone-500 hover:bg-stone-50 hover:text-neutral-900 cursor-pointer'}`}
-              >
-                <FiShield className="text-lg" /> Privacidade (LGPD)
-              </button>
+          <Link
+            to="/"
+            className="flex items-center gap-3 w-full text-left px-6 py-4 text-xs font-bold tracking-wider uppercase text-amber-600 hover:bg-stone-100 transition-colors mt-4 border-t border-stone-100 cursor-pointer"
+          >
+            <FiShoppingBag className="text-lg" /> Minha Vitrine VIP
+          </Link>
 
-              {/* NOVO BOTÃO: VITRINE VIP */}
-              <button
-                onClick={handleVerVitrine}
-                className="flex items-center gap-3 w-full p-4 text-left text-sm uppercase tracking-wider font-bold text-amber-700 hover:bg-amber-50 hover:text-amber-900 transition-colors mt-2 cursor-pointer"
-              >
-                <FiShoppingBag className="text-lg" /> Minha Vitrine VIP
-              </button>
+          <button
+            onClick={handleLogout}
+            disabled={loading}
+            className="flex items-center gap-3 w-full text-left px-6 py-4 text-xs font-bold tracking-wider uppercase text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition-colors cursor-pointer"
+          >
+            <FiLogOut className="text-lg" /> Sair da Conta
+          </button>
+        </div>
 
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 w-full p-4 text-left text-sm uppercase tracking-wider font-bold text-stone-600 hover:bg-stone-100 transition-colors mt-2 border-t border-stone-100 cursor-pointer"
-              >
-                <FiLogOut className="text-lg" /> Sair da Conta
-              </button>
-            </div>
-          </div>
+        {/* ÁREA DE CONTEÚDO PRINCIPAL */}
+        <div className="flex-1 bg-white border border-stone-200 shadow-sm p-8 min-h-125">
 
-          {/* ÁREA DE CONTEÚDO */}
-          <div className="w-full md:w-3/4">
-
-            {mensagemSucesso && (
-              <div className="mb-6 bg-green-50 border border-green-200 text-green-800 p-4 text-sm font-semibold flex items-center justify-between animate-fade-in">
-                {mensagemSucesso}
+          {/* CONTEÚDO: MEUS DADOS */}
+          {activeTab === 'dados' && (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-2 mb-8 text-stone-800">
+                <FiEdit2 className="text-amber-600 text-xl" />
+                <h2 className="text-2xl font-serif">Informações Pessoais</h2>
               </div>
-            )}
 
-            <div className="bg-white border border-stone-200 p-8 shadow-sm min-h-[400px]">
-
-              {/* ABA: MEUS DADOS */}
-              {activeTab === 'dados' && (
-                <div className="animate-fade-in">
-                  <h2 className="text-xl font-serif text-neutral-900 mb-6 flex items-center gap-2">
-                    <FiEdit3 className="text-amber-600" /> Informações Pessoais
-                  </h2>
-
-                  <form onSubmit={handleSaveDados} className="flex flex-col gap-5 max-w-lg">
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2 font-bold">Nome Completo</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full p-3 border border-stone-300 text-stone-700 focus:border-amber-500 focus:outline-none"
-                        value={userData.nome}
-                        onChange={e => setUserData({ ...userData, nome: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2 font-bold">E-mail</label>
-                      <input
-                        type="email"
-                        required
-                        className="w-full p-3 border border-stone-300 text-stone-700 focus:border-amber-500 focus:outline-none"
-                        value={userData.email}
-                        onChange={e => setUserData({ ...userData, email: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-stone-500 mb-2 font-bold">Telefone</label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="(00) 00000-0000"
-                        className="w-full p-3 border border-stone-300 text-stone-700 focus:border-amber-500 focus:outline-none"
-                        value={userData.telefone}
-                        onChange={e => setUserData({ ...userData, telefone: formatPhoneNumber(e.target.value) })}
-                      />
-                    </div>
-                    <button type="submit" className="mt-4 bg-neutral-950 hover:bg-amber-600 text-white hover:text-neutral-950 font-bold py-4 px-6 text-xs uppercase tracking-widest transition-colors w-full md:w-auto self-start">
-                      Guardar Alterações
-                    </button>
-                  </form>
+              <form onSubmit={handleGuardarAlteracoes} className="flex flex-col gap-6 max-w-md">
+                <div>
+                  <label className="block text-xs font-bold tracking-wider uppercase text-stone-500 mb-2">Nome Completo</label>
+                  <input
+                    type="text"
+                    required
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    className="w-full p-3 border border-stone-300 rounded focus:border-amber-500 focus:outline-none text-stone-800 bg-white"
+                  />
                 </div>
-              )}
 
-              {/* ABA: ASSINATURA OLFATIVA */}
-              {activeTab === 'assinatura' && (
-                <div className="animate-fade-in">
-                  <h2 className="text-xl font-serif text-neutral-900 mb-2">A sua Assinatura Olfativa</h2>
-                  <p className="text-sm text-stone-500 mb-8">Refaça a sua descoberta sempre que o seu estilo mudar. A nossa vitrine na página inicial irá adaptar-se às suas novas escolhas.</p>
-
-                  <form onSubmit={handleSaveOlfativo} className="flex flex-col gap-6 max-w-lg mb-8">
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-neutral-900 mb-3 font-bold">Ocasião Principal</label>
-                      <select
-                        className="w-full p-3 border border-stone-300 text-stone-700 focus:border-amber-500 focus:outline-none bg-white"
-                        value={userData.ocasiao}
-                        onChange={e => setUserData({ ...userData, ocasiao: e.target.value })}
-                      >
-                        <option value="Trabalho e dia a dia">Trabalho e dia a dia (Discreto)</option>
-                        <option value="Festas e eventos">Festas e eventos (Marcante)</option>
-                        <option value="Encontros a dois">Encontros a dois (Intimista)</option>
-                        <option value="Assinatura">Assinatura (Uso para tudo)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-neutral-900 mb-3 font-bold">Personalidade</label>
-                      <select
-                        className="w-full p-3 border border-stone-300 text-stone-700 focus:border-amber-500 focus:outline-none bg-white"
-                        value={userData.personalidade}
-                        onChange={e => setUserData({ ...userData, personalidade: e.target.value })}
-                      >
-                        <option value="Elegante">Elegante e sofisticado(a)</option>
-                        <option value="Comunicativo">Dinâmico(a) e comunicativo(a)</option>
-                        <option value="Misterioso">Intenso(a) e sedutor(a)</option>
-                        <option value="Minimalista">Calmo(a) e minimalista</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs uppercase tracking-widest text-neutral-900 mb-3 font-bold">Sensação Preferida</label>
-                      <select
-                        className="w-full p-3 border border-stone-300 text-stone-700 focus:border-amber-500 focus:outline-none bg-white"
-                        value={userData.sensacao}
-                        onChange={e => setUserData({ ...userData, sensacao: e.target.value })}
-                      >
-                        <option value="Doce">Doce, quente e envolvente</option>
-                        <option value="Fresco">Fresco, limpo e versátil</option>
-                        <option value="Floral">Floral, macio e elegante</option>
-                        <option value="Amadeirado">Madeiras fortes e especiarias</option>
-                      </select>
-                    </div>
-
-                    <button type="submit" className="mt-4 border border-stone-300 hover:border-amber-500 text-neutral-900 font-bold py-4 px-6 text-xs uppercase tracking-widest transition-colors w-full md:w-auto self-start">
-                      Gravar Novas Escolhas
-                    </button>
-                  </form>
-
-                  {/* BLOCO DE REDIRECIONAMENTO RÁPIDO */}
-                  <div className="bg-amber-50/50 border border-amber-200/50 p-6 flex flex-col md:flex-row items-center justify-between gap-4 mt-8 max-w-lg">
-                    <div>
-                      <h4 className="text-sm font-bold text-neutral-900 mb-1">Pronto para descobrir?</h4>
-                      <p className="text-xs text-stone-600">A sua vitrine VIP já foi atualizada na página inicial.</p>
-                    </div>
-                    <button
-                      onClick={handleVerVitrine}
-                      className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-neutral-950 text-neutral-950 hover:text-white text-[10px] font-bold uppercase tracking-widest px-5 py-3 transition-colors w-full md:w-auto whitespace-nowrap"
-                    >
-                      Ir para a Loja <FiArrowUpRight className="text-lg" />
-                    </button>
-                  </div>
-
+                <div>
+                  <label className="block text-xs font-bold tracking-wider uppercase text-stone-500 mb-2">E-mail</label>
+                  <input
+                    type="email"
+                    readOnly
+                    value={perfilUsuario?.email || ''}
+                    className="w-full p-3 border border-stone-200 rounded text-stone-500 bg-stone-50 cursor-not-allowed"
+                    title="O e-mail não pode ser alterado por motivos de segurança."
+                  />
                 </div>
-              )}
 
-              {/* ABA: PRIVACIDADE & LGPD */}
-              {activeTab === 'privacidade' && (
-                <div className="animate-fade-in max-w-lg">
-                  <h2 className="text-xl font-serif text-neutral-900 mb-2 flex items-center gap-2">
-                    <FiShield className="text-amber-600" /> Privacidade e Proteção de Dados
-                  </h2>
-                  <p className="text-sm text-stone-500 mb-6 leading-relaxed">
-                    Em conformidade com a Lei Geral de Proteção de Dados (LGPD), os seus dados são utilizados exclusivamente para personalizar a sua experiência olfativa na Perfumaria CS e agilizar o seu atendimento via WhatsApp.
-                  </p>
-
-                  <div className="p-5 border border-red-200 bg-red-50/40">
-                    <h3 className="text-sm font-bold text-red-900 uppercase tracking-wider mb-2">
-                      Excluir Meus Dados
-                    </h3>
-                    <p className="text-xs text-stone-600 mb-4 leading-relaxed">
-                      Ao excluir os seus dados, todas as suas informações pessoais e preferências olfativas serão removidas permanentemente deste dispositivo.
-                    </p>
-
-                    {!confirmarExclusao ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmarExclusao(true)}
-                        className="flex items-center gap-2 border border-red-700 text-red-700 hover:bg-red-700 hover:text-white text-xs font-bold uppercase tracking-widest px-5 py-3 transition-colors"
-                      >
-                        <FiTrash2 /> Solicitar Exclusão de Dados
-                      </button>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          type="button"
-                          onClick={handleExcluirConta}
-                          className="bg-red-700 hover:bg-red-800 text-white text-xs font-bold uppercase tracking-widest px-5 py-3 transition-colors text-center"
-                        >
-                          Confirmar Exclusão
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmarExclusao(false)}
-                          className="border border-stone-300 text-stone-600 hover:bg-stone-100 text-xs font-bold uppercase tracking-widest px-5 py-3 transition-colors text-center"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                <div>
+                  <label className="block text-xs font-bold tracking-wider uppercase text-stone-500 mb-2">Telefone</label>
+                  <input
+                    type="tel"
+                    required
+                    value={telefone}
+                    onChange={(e) => setTelefone(e.target.value)}
+                    className="w-full p-3 border border-stone-300 rounded focus:border-amber-500 focus:outline-none text-stone-800 bg-white"
+                  />
                 </div>
-              )}
 
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-4 bg-neutral-950 hover:bg-neutral-800 text-white font-bold py-3 px-6 rounded transition-colors text-xs tracking-widest uppercase disabled:opacity-50 self-start"
+                >
+                  {loading ? 'A Guardar...' : 'Guardar Alterações'}
+                </button>
+              </form>
             </div>
-          </div>
+          )}
+
+          {/* CONTEÚDO: PERFIL OLFATIVO */}
+          {activeTab === 'perfil' && (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-2 mb-8 text-stone-800">
+                <FiSettings className="text-amber-600 text-xl" />
+                <h2 className="text-2xl font-serif cursor-pointer">O Seu Perfil Olfativo</h2>
+              </div>
+
+              {perfilUsuario ? (
+                <div className="bg-stone-50 border border-stone-200 p-6 rounded mb-8">
+                  <p className="text-sm text-stone-500 mb-4">Baseado nas suas respostas, o seu caminho olfativo ideal é:</p>
+                  <div className="bg-white p-6 rounded text-center border border-amber-600/30 shadow-sm">
+                    <span className="block text-2xl text-amber-600 font-medium mb-2">{perfilUsuario.sensacao}</span>
+                    <span className="text-xs text-stone-500 uppercase tracking-widest block">
+                      {perfilUsuario.personalidade} • {perfilUsuario.ocasiao}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-stone-500 mb-8">Perfil não encontrado.</p>
+              )}
+
+              <div className="border-t border-stone-200 pt-6">
+                <p className="text-sm text-stone-600 mb-4">Sente que os seus gostos mudaram? Refaça o quiz para atualizar a sua curadoria.</p>
+                <button
+                  onClick={handleAbrirModalQuiz}
+                  disabled={loading}
+                  className="flex items-center gap-2 bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold py-3 px-6 rounded transition-colors text-xs tracking-widest uppercase disabled:opacity-50"
+                >
+                  <FiRefreshCcw className="text-lg" /> Refazer Quiz Olfativo
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* CONTEÚDO: PRIVACIDADE */}
+          {activeTab === 'privacidade' && (
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-2 mb-8 text-stone-800">
+                <FiShield className="text-amber-600 text-xl" />
+                <h2 className="text-2xl font-serif cursor-pointer">Privacidade e Dados</h2>
+              </div>
+
+              <div className="prose prose-sm text-stone-600 mb-8">
+                <p>Em conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD)</strong>, você tem controlo total sobre as suas informações.</p>
+                <p>A Perfumaria CS utiliza os seus dados exclusivamente para personalizar a sua Vitrine VIP e facilitar o contacto via WhatsApp.</p>
+                <p>Caso deseje revogar o consentimento, pode excluir a sua conta permanentemente abaixo. Esta ação apagará o seu histórico, perfil olfativo e credenciais de acesso das nossas bases de dados.</p>
+              </div>
+
+              <div className="border-t border-stone-200 pt-6">
+                <button
+                  onClick={handleExcluirConta}
+                  disabled={loading}
+                  className="flex items-center gap-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-6 rounded transition-colors text-xs tracking-widest uppercase disabled:opacity-50"
+                >
+                  <FiTrash2 className="text-lg" /> Excluir Conta Definitivamente
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
+      {/* MODAL DE CONFIRMAÇÃO DO QUIZ */}
+      {showQuizModal && (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-lg shadow-2xl max-w-sm w-full p-6 border border-stone-200">
+            <h3 className="text-xl font-serif text-stone-800 mb-3">Refazer o Quiz?</h3>
+            <p className="text-sm text-stone-500 mb-6 leading-relaxed">
+              O seu perfil olfativo atual será apagado. Terá de responder novamente às 3 perguntas para gerar uma nova assinatura olfativa. Deseja continuar?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowQuizModal(false)}
+                className="flex-1 py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded font-bold text-xs uppercase tracking-wider transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarRefazerQuiz}
+                disabled={loading}
+                className="flex-1 py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Aguarde...' : 'Continuar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,7 +38,7 @@ export function Footer() {
             <h4 className="text-xs font-bold text-amber-600 tracking-widest uppercase mb-4">Atendimento</h4>
             <div className="flex flex-col gap-3 text-sm text-stone-400">
               <a 
-                href="https://wa.me/SEUNUMERO" 
+                href="https://wa.me/+5548998396111" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="flex items-center gap-2 hover:text-amber-500 transition-colors"
@@ -46,7 +46,7 @@ export function Footer() {
                 <FaWhatsapp className="text-lg" /> WhatsApp
               </a>
               <a 
-                href="https://instagram.com/SEUPERFIL" 
+                href="https://instagram.com/carlossouzaperfumaria" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="flex items-center gap-2 hover:text-amber-500 transition-colors"
@@ -61,17 +61,6 @@ export function Footer() {
         {/* Linha Inferior: Copyright e Assinatura do Desenvolvedor */}
         <div className="pt-6 border-t border-neutral-800 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-stone-500">
           <p>© {new Date().getFullYear()} Carlos Souza Perfumaria. Todos os direitos reservados. Imbituba - SC.</p>
-          <p className="flex items-center gap-1">
-            Desenvolvido por 
-            <a 
-              href="https://github.com/joao-carlos-dev" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex items-center gap-1 hover:text-amber-500 transition-colors ml-1"
-            >
-              <FaGithub className="text-sm" /> João Carlos
-            </a>
-          </p>
         </div>
         
       </div>
