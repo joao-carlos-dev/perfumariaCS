@@ -1,4 +1,4 @@
-import { FaWhatsapp, FaInstagram, FaGithub } from 'react-icons/fa';
+import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
 export function Footer() {

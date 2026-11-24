@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiArrowUpRight, FiCheck, FiShield, FiUser } from 'react-icons/fi';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { FiArrowLeft, FiArrowUpRight, FiCheck, FiShield } from 'react-icons/fi';
 import { supabase } from '../supabase';
 
 interface Perfume {
