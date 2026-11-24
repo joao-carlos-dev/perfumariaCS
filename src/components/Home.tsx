@@ -20,9 +20,6 @@ export function Home() {
   const [perfilUsuario, setPerfilUsuario] = useState<any>(null);
   const [busca, setBusca] = useState('');
 
-  // Número do WhatsApp da loja (Substitua pelo seu com o código do país e DDD, sem espaços. Ex: 5548991268854)
-  const WHATSAPP_NUMERO = '5548999999999';
-
   useEffect(() => {
     let perfil = location.state?.perfilUsuario;
     if (!perfil) {
@@ -51,7 +48,9 @@ export function Home() {
 
   // Separa os perfumes recomendados dos restantes
   const perfumesRecomendados = perfilUsuario
-    ? perfumes.filter(p => p.sensacao_indicada === perfilUsuario.sensacao).slice(0, 3)
+    ? perfumes.filter(p =>
+      perfilUsuario.sensacao?.toLowerCase().includes(p.sensacao_indicada.toLowerCase())
+    ).slice(0, 3)
     : [];
 
   // Filtra o catálogo completo pela barra de pesquisa

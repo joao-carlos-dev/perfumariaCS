@@ -138,9 +138,9 @@ export function Login() {
           </button>
 
           <p className="text-center text-sm text-stone-400 mt-4">
-            Ainda não descobriu o seu perfil?{' '}
+            Ainda não tem cadastro?{' '}
             <Link to="/cadastro" className="text-amber-500 hover:underline font-semibold">
-              Fazer Quiz Olfativo
+              Faça aqui!!
             </Link>
           </p>
         </form>
