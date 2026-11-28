@@ -45,14 +45,24 @@ export function Login() {
 
       if (clienteError) throw new Error('Erro ao carregar cliente: ' + clienteError.message);
 
-      // 3. Busca as preferências na tabela 'perfis_olfativos'
+      // 3. Busca o perfil olfativo mais recente (sem quebrar se ainda não existir)
       const { data: quizData, error: quizError } = await supabase
         .from('perfis_olfativos')
         .select('*')
         .eq('cliente_id', userId)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       if (quizError) throw new Error('Erro ao carregar quiz: ' + quizError.message);
+
+      localStorage.setItem('nomeUsuario', clienteData.nome);
+
+      // Se o cliente ainda não respondeu à pesquisa olfativa, leva direto para o quiz
+      if (!quizData) {
+        navigate('/cadastro?etapa=quiz');
+        return;
+      }
 
       // 4. Monta o objeto unificado para a Vitrine VIP e Header
       const perfilCompleto = {
@@ -61,12 +71,15 @@ export function Login() {
         telefone: clienteData.telefone,
         consentimentoLGPD: clienteData.consentimento_lgpd,
         dataCadastro: clienteData.data_cadastro,
+        estilo: quizData.estilo,
         ocasiao: quizData.ocasiao,
         personalidade: quizData.personalidade,
         sensacao: quizData.sensacao,
+        intensidade: quizData.intensidade,
+        orcamento: quizData.orcamento,
+        perfume_favorito: quizData.perfume_favorito,
       };
 
-      localStorage.setItem('nomeUsuario', clienteData.nome);
       localStorage.setItem('perfilCompleto', JSON.stringify(perfilCompleto));
 
       navigate('/', { state: { perfilUsuario: perfilCompleto } });
